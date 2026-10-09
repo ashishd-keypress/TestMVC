@@ -1,0 +1,77 @@
+@model List<TestMVC.Models.Category>
+@{
+    ViewData["Title"] = "Categories";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Categories</h2>
+        <a asp-action="Create" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Category
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col" style="width: 80px;" class="text-center">ID</th>
+                    <th scope="col">Category Name</th>
+                    <th scope="col" style="width: 200px;">Created Date</th>
+                    <th scope="col" style="width: 170px;" class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            <em>No categories found.</em>
+                        </td>
+                    </tr>
+                }
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td class="fw-bold text-center">@c.CategoryId</td>
+                        <td>
+                            <span class="badge bg-info text-dark fs-6">@c.CategoryName</span>
+                        </td>
+                        <td>
+                            @(c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a asp-action="Edit" asp-route-id="@c.CategoryId" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    Edit
+                                </a>
+                                <form asp-action="Delete" asp-route-id="@c.CategoryId" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete \'@c.CategoryName\'?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

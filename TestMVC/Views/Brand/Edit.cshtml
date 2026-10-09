@@ -1,0 +1,53 @@
+@model TestMVC.Models.Brand
+@{
+    ViewData["Title"] = "Edit Brand";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-warning text-dark py-3">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>Edit Brand
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Edit" asp-route-id="@Model.BrandId" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="BrandId" />
+
+                        <div class="mb-3">
+                            <label asp-for="BrandName" class="form-label fw-semibold"></label>
+                            <input asp-for="BrandName" class="form-control" placeholder="Enter brand name" />
+                            <span asp-validation-for="BrandName" class="text-danger small"></span>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                &larr; Back to Brands
+                            </a>
+                            <button type="submit" class="btn btn-warning px-4">
+                                <i class="bi bi-save me-1"></i> Update Brand
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

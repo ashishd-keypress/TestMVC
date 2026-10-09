@@ -1,59 +1,131 @@
-﻿@model List<TestMVC.Models.Product>
+@model List<TestMVC.Models.Product>
 @{
     ViewData["Title"] = "Products";
     int pageNo = ViewBag.PageNo;
     string? search = ViewBag.Search;
 }
 
-<h2>Products</h2>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Products</h2>
+        <a asp-action="Create" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Product
+        </a>
+    </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">@TempData["Success"]</div>
-}
-
-<div class="d-flex justify-content-between mb-3">
-    <form method="get" class="d-flex gap-2">
-        <input type="text" name="search" value="@search" class="form-control" placeholder="Search product..." />
-        <button type="submit" class="btn btn-primary">Search</button>
-    </form>
-    <a asp-action="Create" class="btn btn-success">Add Product</a>
-</div>
-
-<table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Quantity</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model.Count == 0)
-        {
-            <tr><td colspan="4" class="text-center">No products found.</td></tr>
-        }
-        @foreach (var p in Model)
-        {
-            <tr>
-                <td>@p.ProductId</td>
-                <td>@p.ProductName</td>
-                <td>@p.Price.ToString("N2")</td>
-                <td>@p.Quantity</td>
-            </tr>
-        }
-    </tbody>
-</table>
-
-<div class="d-flex gap-2">
-    @if (pageNo > 1)
+    @if (TempData["Success"] != null)
     {
-        <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo - 1)" class="btn btn-outline-secondary">Previous</a>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     }
-    <span class="align-self-center">Page @pageNo</span>
-    @if ((bool)ViewBag.HasNext)
+
+    @if (TempData["Error"] != null)
     {
-        <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo + 1)" class="btn btn-outline-secondary">Next</a>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-5">
+                    <input type="text" name="search" value="@search" class="form-control" placeholder="Search by name, brand, or category..." />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    @if (!string.IsNullOrEmpty(search))
+                    {
+                        <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col" style="width: 60px;">ID</th>
+                    <th scope="col">Product Name</th>
+                    <th scope="col">Brand</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Created Date</th>
+                    <th scope="col" style="width: 170px;" class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <em>No products found.</em>
+                        </td>
+                    </tr>
+                }
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td class="fw-bold text-center">@p.ProductId</td>
+                        <td>@p.Name</td>
+                        <td>@(string.IsNullOrEmpty(p.Brand) ? "-" : p.Brand)</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(p.Category))
+                            {
+                                <span class="badge bg-info text-dark">@p.Category</span>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </td>
+                        <td class="text-end fw-semibold">₹@p.Price.ToString("N2")</td>
+                        <td>@(string.IsNullOrEmpty(p.Size) ? "-" : p.Size)</td>
+                        <td>
+                            @(p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a asp-action="Edit" asp-route-id="@p.ProductId" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    Edit
+                                </a>
+                                <form asp-action="Delete" asp-route-id="@p.ProductId" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete \'@p.Name\'?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            @if (pageNo > 1)
+            {
+                <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo - 1)" class="btn btn-outline-primary btn-sm">
+                    &laquo; Previous
+                </a>
+            }
+        </div>
+        <span class="badge bg-secondary p-2">Page @pageNo</span>
+        <div>
+            @if ((bool)ViewBag.HasNext)
+            {
+                <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo + 1)" class="btn btn-outline-primary btn-sm">
+                    Next &raquo;
+                </a>
+            }
+        </div>
+    </div>
 </div>

@@ -1,0 +1,28 @@
+﻿@model TestMVC.Models.Product
+@{
+    ViewData["Title"] = "Add Product";
+}
+
+<h2>Add Product</h2>
+
+<form asp-action="Create" method="post" style="max-width:500px">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="ProductName" class="form-label"></label>
+        <input asp-for="ProductName" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Price" class="form-label"></label>
+        <input asp-for="Price" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Quantity" class="form-label"></label>
+        <input asp-for="Quantity" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-success">Save</button>
+    <a asp-action="Index" class="btn btn-secondary">Back</a>
+</form>

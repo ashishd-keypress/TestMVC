@@ -43,6 +43,13 @@ namespace TestMVC.Models
         [StringLength(100, ErrorMessage = "Size cannot exceed 100 characters.")]
         public string? Size { get; set; }
 
+        [Display(Name = "Status")]
+        public bool IsActive { get; set; } = true;
+
+        public bool IsDelete { get; set; } = false;
+
+        public int? UserId { get; set; }
+
         public DateTime? CreatedDate { get; set; }
     }
 }

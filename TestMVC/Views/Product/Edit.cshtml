@@ -7,10 +7,10 @@
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-warning text-dark py-3">
-                    <h4 class="card-title mb-0">
-                        <i class="bi bi-pencil-square me-2"></i>Edit Product
-                    </h4>
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="card-title mb-0 text-dark fw-bold">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Product
+                    </h5>
                 </div>
                 <div class="card-body p-4">
                     @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
@@ -27,24 +27,34 @@
 
                         <!-- Product Name -->
                         <div class="mb-3">
-                            <label asp-for="Name" class="form-label fw-semibold"></label>
+                            <label asp-for="Name" class="form-label fw-semibold">
+                                Product Name <span class="required-star">*</span>
+                            </label>
                             <input asp-for="Name" class="form-control" placeholder="Enter product name" />
                             <span asp-validation-for="Name" class="text-danger small"></span>
                         </div>
 
-                        <!-- Brand Dropdown -->
+                        <!-- Hidden inputs to preserve Brand and Category on form submit -->
+                        <input type="hidden" asp-for="BrandId" />
+                        <input type="hidden" asp-for="CategoryId" />
+
+                        <!-- Brand Dropdown (Disabled) -->
                         <div class="mb-3">
-                            <label asp-for="BrandId" class="form-label fw-semibold"></label>
-                            <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-select">
+                            <label asp-for="BrandId" class="form-label fw-semibold">
+                                Brand <span class="required-star">*</span>
+                            </label>
+                            <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-select bg-light" disabled>
                                 <option value="">-- Select Brand --</option>
                             </select>
                             <span asp-validation-for="BrandId" class="text-danger small"></span>
                         </div>
 
-                        <!-- Category Dropdown -->
+                        <!-- Category Dropdown (Disabled) -->
                         <div class="mb-3">
-                            <label asp-for="CategoryId" class="form-label fw-semibold"></label>
-                            <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select">
+                            <label asp-for="CategoryId" class="form-label fw-semibold">
+                                Category <span class="required-star">*</span>
+                            </label>
+                            <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select bg-light" disabled>
                                 <option value="">-- Select Category --</option>
                             </select>
                             <span asp-validation-for="CategoryId" class="text-danger small"></span>
@@ -53,9 +63,11 @@
                         <div class="row">
                             <!-- Price -->
                             <div class="col-md-6 mb-3">
-                                <label asp-for="Price" class="form-label fw-semibold"></label>
+                                <label asp-for="Price" class="form-label fw-semibold">
+                                    Price <span class="required-star">*</span>
+                                </label>
                                 <div class="input-group">
-                                    <span class="input-group-text">₹</span>
+                                    <span class="input-group-text bg-light text-muted">₹</span>
                                     <input asp-for="Price" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
                                 </div>
                                 <span asp-validation-for="Price" class="text-danger small"></span>
@@ -63,9 +75,21 @@
 
                             <!-- Size -->
                             <div class="col-md-6 mb-3">
-                                <label asp-for="Size" class="form-label fw-semibold"></label>
+                                <label asp-for="Size" class="form-label fw-semibold">
+                                    Size <span class="required-star">*</span>
+                                </label>
                                 <input asp-for="Size" class="form-control" placeholder="e.g. UK-9, Medium, 15-inch" />
                                 <span asp-validation-for="Size" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <!-- Status Switch -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" id="productEditIsActiveSwitch" />
+                                <label class="form-check-label fw-semibold" for="productEditIsActiveSwitch">
+                                    Active Status <span class="text-muted small fw-normal">(ON = Active, OFF = Inactive)</span>
+                                </label>
                             </div>
                         </div>
 
@@ -75,7 +99,7 @@
                             <a asp-action="Index" class="btn btn-outline-secondary">
                                 &larr; Back to Products
                             </a>
-                            <button type="submit" class="btn btn-warning px-4">
+                            <button type="submit" class="btn btn-primary px-4">
                                 <i class="bi bi-save me-1"></i> Update Product
                             </button>
                         </div>

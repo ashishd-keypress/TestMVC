@@ -52,7 +52,7 @@ END
 GO
 
 -- ==========================================================
--- 4. Add CategoryId and BrandId columns to dbo.Product
+-- 4. Add CategoryId, BrandId, IsActive, IsDelete to dbo.Product
 -- ==========================================================
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'CategoryId')
 BEGIN
@@ -64,6 +64,27 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Produc
 BEGIN
     ALTER TABLE dbo.Product ADD BrandId INT NULL CONSTRAINT FK_Product_Brand FOREIGN KEY REFERENCES dbo.Brand(BrandId);
 END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'IsActive')
+BEGIN
+    ALTER TABLE dbo.Product ADD IsActive BIT NOT NULL CONSTRAINT DF_Product_IsActive DEFAULT 1;
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'IsDelete')
+BEGIN
+    ALTER TABLE dbo.Product ADD IsDelete BIT NOT NULL CONSTRAINT DF_Product_IsDelete DEFAULT 0;
+END
+GO
+
+-- Ensure all NULL IsDelete/IsActive are sanitized to active non-deleted defaults
+UPDATE dbo.Product SET IsDelete = 0 WHERE IsDelete IS NULL;
+UPDATE dbo.Product SET IsActive = 1 WHERE IsActive IS NULL;
+UPDATE dbo.Category SET IsDelete = 0 WHERE IsDelete IS NULL;
+UPDATE dbo.Category SET IsActive = 1 WHERE IsActive IS NULL;
+UPDATE dbo.Brand SET IsDelete = 0 WHERE IsDelete IS NULL;
+UPDATE dbo.Brand SET IsActive = 1 WHERE IsActive IS NULL;
 GO
 
 -- ==========================================================
@@ -143,13 +164,13 @@ BEGIN
         p.Size,
         p.CreatedDate,
         p.CategoryId,
-        p.BrandId
+        p.BrandId,
+        ISNULL(p.IsActive, 1) AS IsActive
     INTO #TempProduct
     FROM dbo.Product p
     LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
     LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
-    WHERE p.IsActive = 1  
-      AND p.IsDelete = 0 
+    WHERE ISNULL(p.IsDelete, 0) = 0 
       AND (@Price IS NULL OR p.Price <= @Price)
       AND (@Brand IS NULL OR b.BrandName = @Brand OR CAST(p.BrandId AS VARCHAR) = @Brand)
       AND (@Category IS NULL OR c.CategoryName = @Category OR CAST(p.CategoryId AS VARCHAR) = @Category)
@@ -171,7 +192,8 @@ BEGIN
         Size,
         CreatedDate,
         CategoryId,
-        BrandId
+        BrandId,
+        IsActive
     FROM #TempProduct
     ORDER BY ProductId DESC
     OFFSET (@PageNumber - 1) * @PageSize ROWS
@@ -201,6 +223,7 @@ CREATE OR ALTER PROCEDURE dbo.AddProduct
     @CategoryId INT,
     @Price DECIMAL(18,2),
     @Size VARCHAR(100) = NULL,
+    @IsActive BIT = 1,
     @CreatedBY INT = 1
 AS
 BEGIN
@@ -247,7 +270,7 @@ BEGIN
         @CategoryId,
         @Price,
         NULLIF(LTRIM(RTRIM(@Size)), ''),
-        1,
+        ISNULL(@IsActive, 1),
         0,
         ISNULL(@CreatedBY, 1),
         GETDATE()
@@ -273,6 +296,7 @@ BEGIN
         c.CategoryName AS Category,
         p.Price,
         p.Size,
+        p.IsActive,
         p.CreatedDate
     FROM dbo.Product p
     LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
@@ -292,6 +316,7 @@ CREATE OR ALTER PROCEDURE dbo.UpdateProduct
     @CategoryId INT,
     @Price DECIMAL(18,2),
     @Size VARCHAR(100) = NULL,
+    @IsActive BIT = 1,
     @ModifiedBy INT = 1
 AS
 BEGIN
@@ -333,6 +358,7 @@ BEGIN
         CategoryId = @CategoryId,
         Price = @Price,
         Size = NULLIF(LTRIM(RTRIM(@Size)), ''),
+        IsActive = ISNULL(@IsActive, IsActive),
         ModifiedBy = ISNULL(@ModifiedBy, 1),
         ModifiedDate = GETDATE()
     WHERE ProductId = @ProductId;
@@ -390,7 +416,8 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.AddCategory
-    @CategoryName VARCHAR(100)
+    @CategoryName VARCHAR(100),
+    @IsActive BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -412,20 +439,21 @@ BEGIN
     IF EXISTS (SELECT 1 FROM dbo.Category WHERE CategoryName = @CategoryName AND IsDelete = 1)
     BEGIN
         UPDATE dbo.Category
-        SET IsDelete = 0, IsActive = 1, CreatedDate = GETDATE()
+        SET IsDelete = 0, IsActive = ISNULL(@IsActive, 1), CreatedDate = GETDATE()
         WHERE CategoryName = @CategoryName;
     END
     ELSE
     BEGIN
         INSERT INTO dbo.Category (CategoryName, IsActive, IsDelete, CreatedDate)
-        VALUES (@CategoryName, 1, 0, GETDATE());
+        VALUES (@CategoryName, ISNULL(@IsActive, 1), 0, GETDATE());
     END
 END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.UpdateCategory
     @CategoryId INT,
-    @CategoryName VARCHAR(100)
+    @CategoryName VARCHAR(100),
+    @IsActive BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -451,7 +479,8 @@ BEGIN
     END
 
     UPDATE dbo.Category
-    SET CategoryName = @CategoryName
+    SET CategoryName = @CategoryName,
+        IsActive = ISNULL(@IsActive, IsActive)
     WHERE CategoryId = @CategoryId;
 END;
 GO
@@ -506,7 +535,8 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.AddBrand
-    @BrandName VARCHAR(100)
+    @BrandName VARCHAR(100),
+    @IsActive BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -528,20 +558,21 @@ BEGIN
     IF EXISTS (SELECT 1 FROM dbo.Brand WHERE BrandName = @BrandName AND IsDelete = 1)
     BEGIN
         UPDATE dbo.Brand
-        SET IsDelete = 0, IsActive = 1, CreatedDate = GETDATE()
+        SET IsDelete = 0, IsActive = ISNULL(@IsActive, 1), CreatedDate = GETDATE()
         WHERE BrandName = @BrandName;
     END
     ELSE
     BEGIN
         INSERT INTO dbo.Brand (BrandName, IsActive, IsDelete, CreatedDate)
-        VALUES (@BrandName, 1, 0, GETDATE());
+        VALUES (@BrandName, ISNULL(@IsActive, 1), 0, GETDATE());
     END
 END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.UpdateBrand
     @BrandId INT,
-    @BrandName VARCHAR(100)
+    @BrandName VARCHAR(100),
+    @IsActive BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -567,7 +598,8 @@ BEGIN
     END
 
     UPDATE dbo.Brand
-    SET BrandName = @BrandName
+    SET BrandName = @BrandName,
+        IsActive = ISNULL(@IsActive, IsActive)
     WHERE BrandId = @BrandId;
 END;
 GO
@@ -595,3 +627,51 @@ BEGIN
     WHERE BrandId = @BrandId;
 END;
 GO
+
+-- ==========================================================
+-- 10. Users Table for Secure Authentication & Approval
+-- ==========================================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
+BEGIN
+    CREATE TABLE dbo.Users (
+        UserId INT IDENTITY(1,1) PRIMARY KEY,
+        Username NVARCHAR(100) NOT NULL UNIQUE,
+        PasswordHash NVARCHAR(500) NOT NULL,
+        PasswordSalt NVARCHAR(200) NOT NULL,
+        MobileNumber NVARCHAR(20) NOT NULL,
+        IsApproved BIT NOT NULL DEFAULT 0, -- False: pending approval, True: allowed to login
+        IsDelete BIT NOT NULL DEFAULT 0,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        LastLoginDate DATETIME NULL
+    );
+END
+GO
+
+-- ==========================================================
+-- 11. Multi-Tenant User Scoping: Add UserId to Brand, Category, Product
+-- ==========================================================
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Brand') AND name = 'UserId')
+BEGIN
+    ALTER TABLE dbo.Brand ADD UserId INT NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Category') AND name = 'UserId')
+BEGIN
+    ALTER TABLE dbo.Category ADD UserId INT NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'UserId')
+BEGIN
+    ALTER TABLE dbo.Product ADD UserId INT NULL;
+END
+GO
+
+-- Backfill existing legacy records with UserId = 1 (primary/admin user)
+UPDATE dbo.Brand SET UserId = 1 WHERE UserId IS NULL;
+UPDATE dbo.Category SET UserId = 1 WHERE UserId IS NULL;
+UPDATE dbo.Product SET UserId = ISNULL(CreatedBY, 1) WHERE UserId IS NULL;
+GO
+
+

@@ -1,0 +1,154 @@
+@model List<TestMVC.Models.ReqRes.UserItemRes>
+@{
+    ViewData["Title"] = "User Approvals";
+    string? search = ViewBag.Search;
+    bool? isApproved = ViewBag.IsApproved;
+}
+
+<div class="container-fluid mt-2">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">User Management & Approvals</h2>
+            <p class="text-muted small mb-0">Approve or revoke user login access (`IsApproved` boolean status)</p>
+        </div>
+        <a asp-action="Register" class="btn btn-outline-primary btn-sm">
+            + Register New User
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white text-muted">🔍</span>
+                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search by username or mobile..." />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="isApproved" class="form-select">
+                        <option value="">-- All Approval Statuses --</option>
+                        <option value="true" selected="@(isApproved == true ? "selected" : null)">Approved (Can Login)</option>
+                        <option value="false" selected="@(isApproved == false ? "selected" : null)">Pending Approval (Cannot Login)</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a asp-action="Users" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col" style="width: 70px;" class="text-center">ID</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Mobile Number</th>
+                    <th scope="col" class="text-center" style="width: 180px;">Login Approval Status</th>
+                    <th scope="col">Registration Date</th>
+                    <th scope="col">Last Login</th>
+                    <th scope="col" style="width: 140px;" class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <em>No registered users found.</em>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var u in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold text-center">@u.UserId</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary text-white">👤</span>
+                                    <span class="fw-semibold">@u.Username</span>
+                                </div>
+                            </td>
+                            <td>@u.MobileNumber</td>
+                            <td class="text-center">
+                                @if (u.IsApproved)
+                                {
+                                    <span class="badge bg-success text-white px-2 py-1">
+                                        ✓ Approved (Can Login)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark px-2 py-1">
+                                        ⏳ Pending (Cannot Login)
+                                    </span>
+                                }
+                            </td>
+                            <td>@u.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@(u.LastLoginDate.HasValue ? u.LastLoginDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")</td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm @(u.IsApproved ? "btn-outline-danger" : "btn-outline-success")"
+                                        onclick="toggleUserApproval(@u.UserId, this)"
+                                        title="@(u.IsApproved ? "Revoke Login Approval" : "Approve User for Login")">
+                                    @(u.IsApproved ? "Revoke Approval" : "Approve Login")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function toggleUserApproval(userId, btn) {
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const response = await fetch(`/api/Auth/toggle-approval/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message || 'User approval updated.', 'success');
+                    // Reload table content smoothly via SPA
+                    spaNavigate(window.location.href, false);
+                } else {
+                    showToast(result.message || 'Failed to update approval.', 'error');
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showToast('Error updating approval: ' + err.message, 'error');
+                btn.innerHTML = originalText;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+}

@@ -12,6 +12,8 @@ namespace TestMVC.Models
         public string CategoryName { get; set; } = string.Empty;
 
         public bool IsActive { get; set; } = true;
+        public bool IsDelete { get; set; } = false;
+        public int? UserId { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
 }

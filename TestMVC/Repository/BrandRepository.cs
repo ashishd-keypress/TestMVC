@@ -1,7 +1,13 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Threading.Tasks;
 using TestMVC.Interface;
-using TestMVC.Models;
+using TestMVC.Models.ReqRes;
+using Utility;
 
 namespace TestMVC.Repository
 {
@@ -13,108 +19,320 @@ namespace TestMVC.Repository
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("DefaultConnection is missing in appsettings.json");
+
+            DbInitializer.EnsureDatabaseSetup(_connectionString);
         }
 
-        // Calls dbo.GetBrands
-        public async Task<List<Brand>> GetAllBrandsAsync()
+        public async Task<Tuple<List<GetBrandRes>, int, string>> GetBrand(GetBrandReq model)
         {
-            var list = new List<Brand>();
+            string strDBError = string.Empty;
+            List<GetBrandRes> response = new List<GetBrandRes>();
+            int TotalRecords = 0;
 
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.GetBrands", con)
+            using (var connection = new SqlConnection(_connectionString))
             {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            await con.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                list.Add(new Brand
+                try
                 {
-                    BrandId = Convert.ToInt32(reader["BrandId"]),
-                    BrandName = reader["BrandName"].ToString() ?? "",
-                    IsActive = reader["IsActive"] != DBNull.Value ? Convert.ToBoolean(reader["IsActive"]) : true,
-                    CreatedDate = reader["CreatedDate"] != DBNull.Value ? Convert.ToDateTime(reader["CreatedDate"]) : null
-                });
+                    await connection.OpenAsync();
+
+                    using (var countCmd = new SqlCommand(@"
+                        SELECT COUNT(1)
+                        FROM dbo.Brand b
+                        WHERE (CASE WHEN COL_LENGTH('dbo.Brand', 'IsDelete') IS NOT NULL THEN ISNULL(b.IsDelete, 0) ELSE 0 END) = 0
+                          AND (@IsActive IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) = @IsActive)
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(b.UserId, 1) ELSE 1 END) = @UserId)
+                          AND (@SearchText IS NULL OR b.BrandName LIKE '%' + @SearchText + '%');", connection))
+                    {
+                        countCmd.Parameters.AddWithValue("@SearchText", (object?)model.SearchText ?? DBNull.Value);
+                        countCmd.Parameters.AddWithValue("@IsActive", (object?)model.IsActive ?? DBNull.Value);
+                        countCmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+                        TotalRecords = Convert.ToInt32(await countCmd.ExecuteScalarAsync() ?? 0);
+                    }
+
+                    int pageNo = model.PageNo > 0 ? model.PageNo : 1;
+                    int pageSize = model.PageSize > 0 ? model.PageSize : 50;
+                    int offset = (pageNo - 1) * pageSize;
+
+                    using (var cmd = new SqlCommand(@"
+                        SELECT 
+                            b.BrandId,
+                            b.BrandName,
+                            (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) AS IsActive,
+                            (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN b.UserId ELSE 1 END) AS UserId,
+                            b.CreatedDate
+                        FROM dbo.Brand b
+                        WHERE (CASE WHEN COL_LENGTH('dbo.Brand', 'IsDelete') IS NOT NULL THEN ISNULL(b.IsDelete, 0) ELSE 0 END) = 0
+                          AND (@IsActive IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) = @IsActive)
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(b.UserId, 1) ELSE 1 END) = @UserId)
+                          AND (@SearchText IS NULL OR b.BrandName LIKE '%' + @SearchText + '%')
+                        ORDER BY b.BrandId DESC
+                        OFFSET @Offset ROWS
+                        FETCH NEXT @PageSize ROWS ONLY;", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Offset", offset);
+                        cmd.Parameters.AddWithValue("@PageSize", pageSize);
+                        cmd.Parameters.AddWithValue("@SearchText", (object?)model.SearchText ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@IsActive", (object?)model.IsActive ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                        using var reader = await cmd.ExecuteReaderAsync();
+                        response = reader.DataReaderMapToList<GetBrandRes>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
             }
 
-            return list;
+            return new Tuple<List<GetBrandRes>, int, string>(response, TotalRecords, strDBError);
         }
 
-        // Calls dbo.GetBrandById
-        public async Task<Brand?> GetBrandByIdAsync(int brandId)
+        public async Task<Tuple<GetBrandRes?, int, string>> GetBrandById(GetBrandByIdReq model)
         {
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.GetBrandById", con)
+            string strDBError = string.Empty;
+            GetBrandRes? response = null;
+            int totalRecords = 0;
+
+            using (var connection = new SqlConnection(_connectionString))
             {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.Add(new SqlParameter("@BrandId", SqlDbType.Int) { Value = brandId });
-
-            await con.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            if (await reader.ReadAsync())
-            {
-                return new Brand
+                try
                 {
-                    BrandId = Convert.ToInt32(reader["BrandId"]),
-                    BrandName = reader["BrandName"].ToString() ?? "",
-                    IsActive = reader["IsActive"] != DBNull.Value ? Convert.ToBoolean(reader["IsActive"]) : true,
-                    CreatedDate = reader["CreatedDate"] != DBNull.Value ? Convert.ToDateTime(reader["CreatedDate"]) : null
-                };
+                    await connection.OpenAsync();
+                    using var cmd = new SqlCommand(@"
+                        SELECT 
+                            b.BrandId,
+                            b.BrandName,
+                            (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) AS IsActive,
+                            (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN b.UserId ELSE 1 END) AS UserId,
+                            b.CreatedDate
+                        FROM dbo.Brand b
+                        WHERE b.BrandId = @BrandId
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(b.UserId, 1) ELSE 1 END) = @UserId)
+                          AND (CASE WHEN COL_LENGTH('dbo.Brand', 'IsDelete') IS NOT NULL THEN ISNULL(b.IsDelete, 0) ELSE 0 END) = 0;", connection);
+
+                    cmd.Parameters.AddWithValue("@BrandId", model.BrandId);
+                    cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    response = reader.DataReaderMapToSingle<GetBrandRes>();
+                    totalRecords = response != null ? 1 : 0;
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
             }
 
-            return null;
+            return new Tuple<GetBrandRes?, int, string>(response, totalRecords, strDBError);
         }
 
-        // Calls dbo.AddBrand
-        public async Task AddBrandAsync(Brand brand)
+        public async Task<Tuple<bool, int, string>> SaveBrand(SaveBrandReq model)
         {
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.AddBrand", con)
+            string strDBError = string.Empty;
+            bool success = false;
+
+            using (var connection = new SqlConnection(_connectionString))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                try
+                {
+                    await connection.OpenAsync();
 
-            cmd.Parameters.Add(new SqlParameter("@BrandName", SqlDbType.VarChar, 100) { Value = brand.BrandName });
+                    if (model.BrandId <= 0)
+                    {
+                        // Insert with UserId
+                        using var cmd = new SqlCommand(@"
+                            INSERT INTO dbo.Brand (BrandName, IsActive, IsDelete, UserId, CreatedDate)
+                            VALUES (@BrandName, @IsActive, 0, @UserId, GETDATE());
+                            SELECT SCOPE_IDENTITY();", connection);
 
-            await con.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+                        cmd.Parameters.AddWithValue("@BrandName", model.BrandName ?? "");
+                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
+
+                        var result = await cmd.ExecuteScalarAsync();
+                        success = result != null && Convert.ToInt32(result) > 0;
+                    }
+                    else
+                    {
+                        // Update scoped by UserId if specified
+                        using var cmd = new SqlCommand(@"
+                            UPDATE dbo.Brand
+                            SET BrandName = @BrandName,
+                                IsActive = @IsActive
+                            WHERE BrandId = @BrandId
+                              AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
+
+                        cmd.Parameters.AddWithValue("@BrandId", model.BrandId);
+                        cmd.Parameters.AddWithValue("@BrandName", model.BrandName ?? "");
+                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                        int rows = await cmd.ExecuteNonQueryAsync();
+                        success = rows > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
+            }
+
+            return new Tuple<bool, int, string>(success, success ? 1 : 0, strDBError);
         }
 
-        // Calls dbo.UpdateBrand
-        public async Task UpdateBrandAsync(Brand brand)
+        public async Task<Tuple<ToggleStatusRes, int, string>> ToggleStatus(ToggleStatusReq model)
         {
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.UpdateBrand", con)
+            string strDBError = string.Empty;
+            var res = new ToggleStatusRes { Id = model.Id };
+
+            using (var connection = new SqlConnection(_connectionString))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                try
+                {
+                    await connection.OpenAsync();
 
-            cmd.Parameters.Add(new SqlParameter("@BrandId", SqlDbType.Int) { Value = brand.BrandId });
-            cmd.Parameters.Add(new SqlParameter("@BrandName", SqlDbType.VarChar, 100) { Value = brand.BrandName });
+                    bool newStatus;
+                    if (model.IsActive.HasValue)
+                    {
+                        newStatus = model.IsActive.Value;
+                    }
+                    else
+                    {
+                        using var getCmd = new SqlCommand("SELECT ISNULL(IsActive, 1) FROM dbo.Brand WHERE BrandId = @Id;", connection);
+                        getCmd.Parameters.AddWithValue("@Id", model.Id);
+                        var currentVal = await getCmd.ExecuteScalarAsync();
+                        newStatus = currentVal == null || !Convert.ToBoolean(currentVal);
+                    }
 
-            await con.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+                    using var updateCmd = new SqlCommand(@"
+                        UPDATE dbo.Brand 
+                        SET IsActive = @IsActive 
+                        WHERE BrandId = @Id
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(UserId, @UserId) ELSE @UserId END) = @UserId);", connection);
+
+                    updateCmd.Parameters.AddWithValue("@Id", model.Id);
+                    updateCmd.Parameters.AddWithValue("@IsActive", newStatus ? 1 : 0);
+                    updateCmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                    int affected = await updateCmd.ExecuteNonQueryAsync();
+                    if (affected > 0)
+                    {
+                        res.Success = true;
+                        res.IsActive = newStatus;
+                        res.Message = $"Brand status changed to {(newStatus ? "ON (Active)" : "OFF (Inactive)")}.";
+                    }
+                    else
+                    {
+                        res.Success = false;
+                        res.Message = "Brand record not found or access denied.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                    res.Success = false;
+                    res.Message = "Database error while updating brand status.";
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
+            }
+
+            return new Tuple<ToggleStatusRes, int, string>(res, res.Success ? 1 : 0, strDBError);
         }
 
-        // Calls dbo.DeleteBrand
-        public async Task DeleteBrandAsync(int brandId)
+        public async Task<Tuple<DeleteRes, int, string>> DeleteBrand(DeleteReq model)
         {
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.DeleteBrand", con)
+            string strDBError = string.Empty;
+            var res = new DeleteRes { Id = model.Id };
+
+            using (var connection = new SqlConnection(_connectionString))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                try
+                {
+                    await connection.OpenAsync();
+                    using var cmd = new SqlCommand(@"
+                        UPDATE dbo.Brand 
+                        SET IsDelete = 1, IsActive = 0 
+                        WHERE BrandId = @Id
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(UserId, @UserId) ELSE @UserId END) = @UserId);", connection);
 
-            cmd.Parameters.Add(new SqlParameter("@BrandId", SqlDbType.Int) { Value = brandId });
+                    cmd.Parameters.AddWithValue("@Id", model.Id);
+                    cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
 
-            await con.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+                    int affected = await cmd.ExecuteNonQueryAsync();
+                    if (affected > 0)
+                    {
+                        res.Success = true;
+                        res.Message = "Brand deleted successfully.";
+                    }
+                    else
+                    {
+                        res.Success = false;
+                        res.Message = "Brand not found or access denied.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                    res.Success = false;
+                    res.Message = "Database error while deleting brand.";
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
+            }
+
+            return new Tuple<DeleteRes, int, string>(res, res.Success ? 1 : 0, strDBError);
+        }
+
+        public async Task<Tuple<int, int, string>> GetActiveBrandCount(int? userId = null)
+        {
+            string strDBError = string.Empty;
+            int count = 0;
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    using var cmd = new SqlCommand(@"
+                        SELECT COUNT(1) 
+                        FROM dbo.Brand 
+                        WHERE (CASE WHEN COL_LENGTH('dbo.Brand', 'IsDelete') IS NOT NULL THEN ISNULL(IsDelete, 0) ELSE 0 END) = 0
+                          AND (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(IsActive, 1) ELSE 1 END) = 1
+                          AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN ISNULL(UserId, 1) ELSE 1 END) = @UserId);", connection);
+
+                    cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
+
+                    count = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+                }
+                catch (Exception ex)
+                {
+                    strDBError = JsonConvert.SerializeObject(ex);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open) await connection.CloseAsync();
+                }
+            }
+
+            return new Tuple<int, int, string>(count, count, strDBError);
         }
     }
 }

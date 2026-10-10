@@ -7,10 +7,10 @@
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white py-3">
-                    <h4 class="card-title mb-0">
-                        <i class="bi bi-briefcase me-2"></i>Add New Brand
-                    </h4>
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="card-title mb-0 text-dark fw-bold">
+                        <i class="bi bi-briefcase text-primary me-2"></i>Add New Brand
+                    </h5>
                 </div>
                 <div class="card-body p-4">
                     @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
@@ -25,9 +25,21 @@
                         @Html.AntiForgeryToken()
 
                         <div class="mb-3">
-                            <label asp-for="BrandName" class="form-label fw-semibold"></label>
+                            <label asp-for="BrandName" class="form-label fw-semibold">
+                                Brand Name <span class="required-star">*</span>
+                            </label>
                             <input asp-for="BrandName" class="form-control" placeholder="e.g. Nike, Adidas, Lenovo, Apple" />
                             <span asp-validation-for="BrandName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Status Switch -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" id="brandIsActiveSwitch" checked />
+                                <label class="form-check-label fw-semibold" for="brandIsActiveSwitch">
+                                    Active Status <span class="text-muted small fw-normal">(ON = Active, OFF = Inactive)</span>
+                                </label>
+                            </div>
                         </div>
 
                         <hr class="my-4" />
@@ -36,7 +48,7 @@
                             <a asp-action="Index" class="btn btn-outline-secondary">
                                 &larr; Back to Brands
                             </a>
-                            <button type="submit" class="btn btn-success px-4">
+                            <button type="submit" class="btn btn-primary px-4">
                                 <i class="bi bi-check-circle me-1"></i> Save Brand
                             </button>
                         </div>

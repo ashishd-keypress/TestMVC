@@ -1,9 +1,15 @@
 @model List<TestMVC.Models.Product>
 @{
     ViewData["Title"] = "Products";
-    int pageNo = ViewBag.PageNo;
+    int pageNo = ViewBag.PageNo ?? 1;
     string? search = ViewBag.Search;
+    bool hasNext = ViewBag.HasNext != null && (bool)ViewBag.HasNext;
 }
+
+<!-- Hidden AntiForgeryToken for dynamic delete actions -->
+<form id="antiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -31,16 +37,33 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-center">
-                <div class="col-md-5">
-                    <input type="text" name="search" value="@search" class="form-control" placeholder="Search by name, brand, or category..." />
+            <form id="searchForm" method="get" class="row g-2 align-items-center" onsubmit="event.preventDefault(); triggerSearch(1);">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white text-muted">
+                            <i class="bi bi-search">🔍</i>
+                        </span>
+                        <input type="text"
+                               id="searchInput"
+                               name="search"
+                               value="@search"
+                               class="form-control"
+                               placeholder="Type to search (e.g. Laptop, Dell, Electronics)..."
+                               autocomplete="off" />
+                        <span class="input-group-text bg-white" id="searchSpinner" style="display: none;">
+                            <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                        </span>
+                        <button type="button"
+                                id="btnClearSearch"
+                                class="btn btn-outline-secondary"
+                                style="@(string.IsNullOrEmpty(search) ? "display:none;" : "")"
+                                title="Clear Search">
+                            ✕
+                        </button>
+                    </div>
                 </div>
                 <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">Search</button>
-                    @if (!string.IsNullOrEmpty(search))
-                    {
-                        <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
-                    }
+                    <button type="button" class="btn btn-primary" onclick="triggerSearch(1)">Search</button>
                 </div>
             </form>
         </div>
@@ -48,23 +71,24 @@
 
     <div class="table-responsive shadow-sm rounded">
         <table class="table table-hover table-bordered align-middle mb-0">
-            <thead class="table-dark">
+            <thead class="table-light">
                 <tr>
                     <th scope="col" style="width: 60px;">ID</th>
                     <th scope="col">Product Name</th>
                     <th scope="col">Brand</th>
                     <th scope="col">Category</th>
-                    <th scope="col">Price</th>
+                    <th scope="col" class="text-end">Price</th>
                     <th scope="col">Size</th>
+                    <th scope="col" class="text-center" style="width: 100px;">Status</th>
                     <th scope="col">Created Date</th>
                     <th scope="col" style="width: 170px;" class="text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="productTableBody">
                 @if (Model.Count == 0)
                 {
-                    <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                    <tr id="noRecordsRow">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             <em>No products found.</em>
                         </td>
                     </tr>
@@ -87,20 +111,31 @@
                         </td>
                         <td class="text-end fw-semibold">₹@p.Price.ToString("N2")</td>
                         <td>@(string.IsNullOrEmpty(p.Size) ? "-" : p.Size)</td>
+                        <td class="text-center">
+                            @if (p.IsActive)
+                            {
+                                <button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Product', @p.ProductId, this)" title="Click to turn OFF (Inactive)">
+                                    <i class="bi bi-toggle-on me-1"></i> ON
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-status-off px-2 py-1" onclick="toggleStatus('Product', @p.ProductId, this)" title="Click to turn ON (Active)">
+                                    <i class="bi bi-toggle-off me-1"></i> OFF
+                                </button>
+                            }
+                        </td>
                         <td>
                             @(p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-2 justify-content-center">
-                                <a asp-action="Edit" asp-route-id="@p.ProductId" class="btn btn-sm btn-outline-warning" title="Edit">
+                                <a asp-action="Edit" asp-route-id="@p.ProductId" class="btn btn-sm btn-outline-primary" title="Edit">
                                     Edit
                                 </a>
-                                <form asp-action="Delete" asp-route-id="@p.ProductId" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete \'@p.Name\'?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-                                        Delete
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Product', @p.ProductId, '@p.Name.Replace("'", "\\'")', this.closest('tr'))" title="Delete">
+                                    Delete
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -109,23 +144,201 @@
         </table>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
-        <div>
+    <div id="paginationContainer" class="d-flex justify-content-between align-items-center mt-3">
+        <div id="prevPageBtn">
             @if (pageNo > 1)
             {
-                <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo - 1)" class="btn btn-outline-primary btn-sm">
+                <button type="button" onclick="triggerSearch(@(pageNo - 1))" class="btn btn-outline-primary btn-sm">
                     &laquo; Previous
-                </a>
+                </button>
             }
         </div>
-        <span class="badge bg-secondary p-2">Page @pageNo</span>
-        <div>
-            @if ((bool)ViewBag.HasNext)
+        <span id="pageIndicator" class="badge bg-secondary p-2">Page @pageNo</span>
+        <div id="nextPageBtn">
+            @if (hasNext)
             {
-                <a asp-action="Index" asp-route-search="@search" asp-route-pageNo="@(pageNo + 1)" class="btn btn-outline-primary btn-sm">
+                <button type="button" onclick="triggerSearch(@(pageNo + 1))" class="btn btn-outline-primary btn-sm">
                     Next &raquo;
-                </a>
+                </button>
             }
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        let searchTimeout = null;
+        let currentPage = @pageNo;
+
+        const searchInput = document.getElementById('searchInput');
+        const searchSpinner = document.getElementById('searchSpinner');
+        const btnClearSearch = document.getElementById('btnClearSearch');
+        const tableBody = document.getElementById('productTableBody');
+        const paginationContainer = document.getElementById('paginationContainer');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        // Real-time live search on user typing
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const query = this.value.trim();
+                if (btnClearSearch) btnClearSearch.style.display = query.length > 0 ? 'inline-block' : 'none';
+
+                if (searchSpinner) searchSpinner.style.display = 'inline-block';
+
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+
+                searchTimeout = setTimeout(() => {
+                    triggerSearch(1);
+                }, 300);
+            });
+        }
+
+        // Clear button handler
+        if (btnClearSearch) {
+            btnClearSearch.addEventListener('click', function () {
+                if (searchInput) {
+                    searchInput.value = '';
+                    btnClearSearch.style.display = 'none';
+                    searchInput.focus();
+                }
+                triggerSearch(1);
+            });
+        }
+
+        // Fetch products matching the search query via AJAX API
+        function triggerSearch(pageNo) {
+            currentPage = pageNo || 1;
+            const query = searchInput ? searchInput.value.trim() : '';
+            if (searchSpinner) searchSpinner.style.display = 'inline-block';
+
+            const url = `/api/Product/search?search=${encodeURIComponent(query)}&pageNo=${currentPage}`;
+
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    if (searchSpinner) searchSpinner.style.display = 'none';
+                    if (result.success) {
+                        renderProductTable(result.data, query);
+                        renderPagination(result.pageNo, result.hasNext);
+                        
+                        const newUrl = query ? `/Product?search=${encodeURIComponent(query)}&pageNo=${currentPage}` : `/Product?pageNo=${currentPage}`;
+                        window.history.replaceState({ path: newUrl }, '', newUrl);
+                    }
+                })
+                .catch(error => {
+                    if (searchSpinner) searchSpinner.style.display = 'none';
+                    console.error('Error fetching search results:', error);
+                });
+        }
+
+        // Render table rows dynamically
+        function renderProductTable(products, query) {
+            if (!tableBody) return;
+
+            if (!products || products.length === 0) {
+                const message = query ? `No products found matching "${escapeHtml(query)}".` : 'No products found.';
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <em>${message}</em>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            products.forEach(p => {
+                const brand = p.brand ? escapeHtml(p.brand) : '-';
+                const categoryBadge = p.category
+                    ? `<span class="badge bg-info text-dark">${escapeHtml(p.category)}</span>`
+                    : '<span>-</span>';
+                const size = p.size ? escapeHtml(p.size) : '-';
+                const formattedPrice = Number(p.price).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                const date = p.createdDate || '-';
+                const name = escapeHtml(p.name);
+                const safeNameForConfirm = name.replace(/'/g, "\\'");
+
+                const statusBtn = p.isActive
+                    ? `<button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Product', ${p.productId}, this)" title="Click to turn OFF (Inactive)">
+                        <i class="bi bi-toggle-on me-1"></i> ON
+                       </button>`
+                    : `<button type="button" class="btn btn-sm btn-status-off px-2 py-1" onclick="toggleStatus('Product', ${p.productId}, this)" title="Click to turn ON (Active)">
+                        <i class="bi bi-toggle-off me-1"></i> OFF
+                       </button>`;
+
+                html += `
+                    <tr>
+                        <td class="fw-bold text-center">${p.productId}</td>
+                        <td>${name}</td>
+                        <td>${brand}</td>
+                        <td>${categoryBadge}</td>
+                        <td class="text-end fw-semibold">₹${formattedPrice}</td>
+                        <td>${size}</td>
+                        <td class="text-center">${statusBtn}</td>
+                        <td>${date}</td>
+                        <td class="text-center">
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="/Product/Edit/${p.productId}" class="btn btn-sm btn-outline-primary" title="Edit">
+                                    Edit
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Product', ${p.productId}, '${safeNameForConfirm}', this.closest('tr'))" title="Delete">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableBody.innerHTML = html;
+        }
+
+        // Render pagination controls dynamically
+        function renderPagination(pageNo, hasNext) {
+            pageIndicator.innerText = `Page ${pageNo}`;
+
+            if (pageNo > 1) {
+                prevPageBtn.innerHTML = `
+                    <button type="button" onclick="triggerSearch(${pageNo - 1})" class="btn btn-outline-primary btn-sm">
+                        &laquo; Previous
+                    </button>
+                `;
+            } else {
+                prevPageBtn.innerHTML = '';
+            }
+
+            if (hasNext) {
+                nextPageBtn.innerHTML = `
+                    <button type="button" onclick="triggerSearch(${pageNo + 1})" class="btn btn-outline-primary btn-sm">
+                        Next &raquo;
+                    </button>
+                `;
+            } else {
+                nextPageBtn.innerHTML = '';
+            }
+        }
+
+        // Utility to escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+    </script>
+}

@@ -1,0 +1,116 @@
+@model TestMVC.Models.ReqRes.RegisterReq
+@{
+    ViewData["Title"] = "User Registration";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom text-center py-4">
+                    <div class="brand-badge mx-auto mb-2" style="width: 50px; height: 50px; font-size: 1.5rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        📝
+                    </div>
+                    <h3 class="fw-bold text-dark mb-1">Create Account</h3>
+                    <p class="text-muted small mb-0">Register with username, password, and mobile number</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <div class="alert alert-info d-flex align-items-center gap-2 mb-4" role="alert">
+                        <span class="fs-5">ℹ️</span>
+                        <div class="small">
+                            <strong>Note:</strong> Once registered, your account status will be set to Pending Approval.
+                        </div>
+                    </div>
+
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Register" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <!-- Username -->
+                        <div class="mb-3">
+                            <label asp-for="Username" class="form-label fw-semibold">
+                                Username <span class="required-star">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted">👤</span>
+                                <input asp-for="Username" class="form-control" placeholder="Choose a unique username" autocomplete="username" autofocus />
+                            </div>
+                            <span asp-validation-for="Username" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Mobile Number (Only 10-digit Indian mobile number with +91) -->
+                        <div class="mb-3">
+                            <label asp-for="MobileNumber" class="form-label fw-semibold">
+                                Mobile Number <span class="required-star">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted fw-semibold">+91</span>
+                                <input asp-for="MobileNumber" class="form-control" placeholder="10-digit mobile number" maxlength="10" pattern="[6-9][0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);" autocomplete="tel" />
+                            </div>
+                            <span asp-validation-for="MobileNumber" class="text-danger small"></span>
+                            <div class="form-text small text-muted">Enter 10-digit Indian mobile number (e.g. 9876543210).</div>
+                        </div>
+
+                        <!-- Password (Min 8 chars: capital, small, digit, special character) -->
+                        <div class="mb-4">
+                            <label asp-for="Password" class="form-label fw-semibold">
+                                Password <span class="required-star">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted">🔑</span>
+                                <input asp-for="Password" type="password" id="registerPasswordInput" class="form-control" placeholder="Min. 8 chars (A-Z, a-z, 0-9, special char)" autocomplete="new-password" />
+                                <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-toggle-password="registerPasswordInput" onclick="togglePasswordVisibility('registerPasswordInput', this)" title="Show/Hide Password" aria-label="Toggle Password Visibility">
+                                    👁️
+                                </button>
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                            <div class="form-text small text-muted">Must be at least 8 characters with uppercase, lowercase, digit, and special character.</div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-success py-2 fw-semibold shadow-sm">
+                                Register Account &rarr;
+                            </button>
+                        </div>
+
+                        <div class="text-center pt-2">
+                            <p class="text-muted small mb-0">
+                                Already have an account?
+                                <a asp-action="Login" class="text-primary fw-bold text-decoration-none">
+                                    Sign In here
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.innerText = '🙈';
+                } else {
+                    input.type = 'password';
+                    btn.innerText = '👁️';
+                }
+            }
+        }
+    </script>
+}

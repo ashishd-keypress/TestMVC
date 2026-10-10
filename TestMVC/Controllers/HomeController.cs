@@ -1,19 +1,33 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using TestMVC.Interface;
 using TestMVC.Models;
 
 namespace TestMVC.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        private readonly IDashboardService _dashboardService;
+
+        public HomeController(IDashboardService dashboardService)
         {
-            return View();
+            _dashboardService = dashboardService;
         }
 
-        public IActionResult Privacy()
+        public async Task<IActionResult> Index()
         {
-            return View();
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (stats, _, _) = await _dashboardService.GetDashboardStats(currentUserId);
+
+            var viewModel = new DashboardViewModel
+            {
+                TotalProducts = stats.TotalProducts,
+                TotalCategories = stats.TotalCategories,
+                TotalBrands = stats.TotalBrands
+            };
+
+            return View(viewModel);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

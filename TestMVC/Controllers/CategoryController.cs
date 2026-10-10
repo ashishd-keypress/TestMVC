@@ -1,23 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+using System.Linq;
+using System.Threading.Tasks;
 using TestMVC.Interface;
 using TestMVC.Models;
+using TestMVC.Models.ReqRes;
 
 namespace TestMVC.Controllers
 {
     public class CategoryController : Controller
     {
-        private readonly ICategoryRepository _repo;
+        private readonly ICategoryService _categoryService;
 
-        public CategoryController(ICategoryRepository repo)
+        public CategoryController(ICategoryService categoryService)
         {
-            _repo = repo;
+            _categoryService = categoryService;
         }
 
         // GET: /Category
         public async Task<IActionResult> Index()
         {
-            var categories = await _repo.GetAllCategoriesAsync();
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (categoriesRes, _, _) = await _categoryService.GetCategory(new GetCategoryReq { PageSize = 100, UserId = currentUserId });
+            var categories = categoriesRes.Select(c => new Category
+            {
+                CategoryId = c.CategoryId,
+                CategoryName = c.CategoryName,
+                IsActive = c.IsActive,
+                UserId = c.UserId,
+                CreatedDate = c.CreatedDate
+            }).ToList();
+
             return View(categories);
         }
 
@@ -38,22 +50,23 @@ namespace TestMVC.Controllers
                 return View(category);
             }
 
-            try
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (success, _, err) = await _categoryService.SaveCategory(new SaveCategoryReq
             {
-                await _repo.AddCategoryAsync(category);
+                CategoryId = 0,
+                CategoryName = category.CategoryName,
+                IsActive = category.IsActive,
+                UserId = currentUserId
+            });
+
+            if (success)
+            {
                 TempData["Success"] = "Category added successfully.";
                 return RedirectToAction(nameof(Index));
             }
-            catch (SqlException ex)
-            {
-                ModelState.AddModelError(string.Empty, ex.Message);
-                return View(category);
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError(string.Empty, "An unexpected error occurred: " + ex.Message);
-                return View(category);
-            }
+
+            ModelState.AddModelError(string.Empty, "Failed to add category: " + err);
+            return View(category);
         }
 
         // GET: /Category/Edit/5
@@ -65,12 +78,22 @@ namespace TestMVC.Controllers
                 return BadRequest();
             }
 
-            var category = await _repo.GetCategoryByIdAsync(id);
-            if (category == null)
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (categoryRes, _, _) = await _categoryService.GetCategoryById(new GetCategoryByIdReq { CategoryId = id, UserId = currentUserId });
+            if (categoryRes == null)
             {
                 TempData["Error"] = "Category not found.";
                 return RedirectToAction(nameof(Index));
             }
+
+            var category = new Category
+            {
+                CategoryId = categoryRes.CategoryId,
+                CategoryName = categoryRes.CategoryName,
+                IsActive = categoryRes.IsActive,
+                UserId = categoryRes.UserId,
+                CreatedDate = categoryRes.CreatedDate
+            };
 
             return View(category);
         }
@@ -90,22 +113,43 @@ namespace TestMVC.Controllers
                 return View(category);
             }
 
-            try
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (success, _, err) = await _categoryService.SaveCategory(new SaveCategoryReq
             {
-                await _repo.UpdateCategoryAsync(category);
+                CategoryId = category.CategoryId,
+                CategoryName = category.CategoryName,
+                IsActive = category.IsActive,
+                UserId = currentUserId
+            });
+
+            if (success)
+            {
                 TempData["Success"] = "Category updated successfully.";
                 return RedirectToAction(nameof(Index));
             }
-            catch (SqlException ex)
+
+            ModelState.AddModelError(string.Empty, "Failed to update category: " + err);
+            return View(category);
+        }
+
+        // GET: /Category/ListApi
+        [HttpGet]
+        public async Task<IActionResult> ListApi()
+        {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (categoriesRes, _, _) = await _categoryService.GetCategory(new GetCategoryReq { PageSize = 100, UserId = currentUserId });
+            return Json(new
             {
-                ModelState.AddModelError(string.Empty, ex.Message);
-                return View(category);
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError(string.Empty, "An unexpected error occurred: " + ex.Message);
-                return View(category);
-            }
+                success = true,
+                data = categoriesRes.Select(c => new
+                {
+                    categoryId = c.CategoryId,
+                    categoryName = c.CategoryName,
+                    isActive = c.IsActive,
+                    userId = c.UserId,
+                    createdDate = c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-"
+                })
+            });
         }
 
         // POST: /Category/Delete/5
@@ -115,24 +159,74 @@ namespace TestMVC.Controllers
         {
             if (id <= 0)
             {
+                if (IsAjaxRequest())
+                    return Json(new { success = false, message = "Invalid Category ID." });
+
                 return BadRequest();
             }
 
-            try
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (res, _, _) = await _categoryService.DeleteCategory(new DeleteReq { Id = id, UserId = currentUserId });
+
+            if (IsAjaxRequest())
             {
-                await _repo.DeleteCategoryAsync(id);
-                TempData["Success"] = "Category deleted successfully.";
+                return Json(new { success = res.Success, message = res.Message });
             }
-            catch (SqlException ex)
+
+            if (res.Success)
             {
-                TempData["Error"] = ex.Message;
+                TempData["Success"] = res.Message;
             }
-            catch (Exception ex)
+            else
             {
-                TempData["Error"] = "An error occurred while deleting: " + ex.Message;
+                TempData["Error"] = res.Message;
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // POST: /Category/ToggleStatus/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            if (id <= 0)
+            {
+                if (IsAjaxRequest())
+                    return Json(new { success = false, message = "Invalid Category ID." });
+
+                return BadRequest();
+            }
+
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (res, _, _) = await _categoryService.ToggleStatus(new ToggleStatusReq { Id = id, UserId = currentUserId });
+
+            if (IsAjaxRequest())
+            {
+                return Json(new
+                {
+                    success = res.Success,
+                    isActive = res.IsActive,
+                    message = res.Message
+                });
+            }
+
+            if (res.Success)
+            {
+                TempData["Success"] = res.Message;
+            }
+            else
+            {
+                TempData["Error"] = res.Message;
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        private bool IsAjaxRequest()
+        {
+            return Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                   Request.Headers.Accept.ToString().Contains("application/json");
         }
     }
 }

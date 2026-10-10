@@ -7,10 +7,10 @@
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-warning text-dark py-3">
-                    <h4 class="card-title mb-0">
-                        <i class="bi bi-pencil-square me-2"></i>Edit Category
-                    </h4>
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="card-title mb-0 text-dark fw-bold">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Category
+                    </h5>
                 </div>
                 <div class="card-body p-4">
                     @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
@@ -26,9 +26,21 @@
                         <input type="hidden" asp-for="CategoryId" />
 
                         <div class="mb-3">
-                            <label asp-for="CategoryName" class="form-label fw-semibold"></label>
+                            <label asp-for="CategoryName" class="form-label fw-semibold">
+                                Category Name <span class="required-star">*</span>
+                            </label>
                             <input asp-for="CategoryName" class="form-control" placeholder="Enter category name" />
                             <span asp-validation-for="CategoryName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Status Switch -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" id="categoryEditIsActiveSwitch" />
+                                <label class="form-check-label fw-semibold" for="categoryEditIsActiveSwitch">
+                                    Active Status <span class="text-muted small fw-normal">(ON = Active, OFF = Inactive)</span>
+                                </label>
+                            </div>
                         </div>
 
                         <hr class="my-4" />
@@ -37,7 +49,7 @@
                             <a asp-action="Index" class="btn btn-outline-secondary">
                                 &larr; Back to Categories
                             </a>
-                            <button type="submit" class="btn btn-warning px-4">
+                            <button type="submit" class="btn btn-primary px-4">
                                 <i class="bi bi-save me-1"></i> Update Category
                             </button>
                         </div>

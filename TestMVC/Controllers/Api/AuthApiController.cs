@@ -22,83 +22,6 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
-        [Route("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterReq model)
-        {
-            DateTime reqDateTime = DateTime.UtcNow;
-            string StrSystemError = "NO SYSTEM ERROR.";
-            string StrDBError = string.Empty;
-            HttpStatusCode statusCode = HttpStatusCode.OK;
-            TranStatus tranStatus = new TranStatus() { ReturnMessage = "Success.", Code = 0 };
-            Dictionary<string, object?> dctData = new Dictionary<string, object?>();
-            RegisterRes response = new RegisterRes();
-            int TotalRecords = 0;
-
-            try
-            {
-                model ??= new RegisterReq();
-
-                if (!ModelState.IsValid)
-                {
-                    tranStatus.Code = 2;
-                    tranStatus.ReturnMessage = "Invalid input fields.";
-                    statusCode = HttpStatusCode.BadRequest;
-                }
-                else
-                {
-                    (response, TotalRecords, StrDBError) = await _authService.RegisterAsync(model);
-
-                    if (!string.IsNullOrEmpty(StrDBError))
-                    {
-                        tranStatus.ReturnMessage = "Something went wrong(DB).";
-                        tranStatus.Code = 2;
-                        statusCode = HttpStatusCode.InternalServerError;
-                    }
-                    else if (!response.Success)
-                    {
-                        tranStatus.Code = 2;
-                        tranStatus.ReturnMessage = response.Message;
-                        statusCode = HttpStatusCode.BadRequest;
-                    }
-                    else
-                    {
-                        tranStatus.ReturnMessage = response.Message;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                tranStatus.Code = 2;
-                tranStatus.ReturnMessage = "Something went wrong.";
-                statusCode = HttpStatusCode.BadRequest;
-                StrSystemError = JsonConvert.SerializeObject(ex);
-            }
-            finally
-            {
-                dctData.Add("Data", response);
-                dctData.Add("TotalRecords", TotalRecords);
-                dctData.Add("Status", tranStatus);
-                dctData.Add("success", response.Success);
-                dctData.Add("message", response.Message);
-
-                // Sanitize password before logging for security
-                var logModel = new { Username = model?.Username, MobileNumber = model?.MobileNumber, Password = "***" };
-
-                string message = "*******************************************************************" + Environment.NewLine
-                                 + "Request UTC: " + reqDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Response UTC: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Request: " + JsonConvert.SerializeObject(logModel) + Environment.NewLine
-                                 + "Response: " + JsonConvert.SerializeObject(dctData) + Environment.NewLine
-                                 + "Message: " + StrSystemError + Environment.NewLine
-                                 + "DataBase Error: " + StrDBError + Environment.NewLine;
-
-                string path = string.Format("\\Auth\\Register\\{0}", DateTime.UtcNow.ToString("yyyyMMdd"));
-                Helper.WriteToFile(message, path, DateTime.UtcNow.ToString("hh_00 tt"), false);
-            }
-            return this.StatusCode(Convert.ToInt32(statusCode), dctData);
-        }
-
-        [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] LoginReq model)
         {
@@ -156,7 +79,6 @@ namespace TestMVC.Controllers.Api
                 dctData.Add("TotalRecords", TotalRecords);
                 dctData.Add("Status", tranStatus);
                 dctData.Add("success", response.Success);
-                dctData.Add("isApproved", response.IsApproved);
                 dctData.Add("message", response.Message);
                 dctData.Add("token", response.Token);
 
@@ -172,115 +94,6 @@ namespace TestMVC.Controllers.Api
                                  + "DataBase Error: " + StrDBError + Environment.NewLine;
 
                 string path = string.Format("\\Auth\\Login\\{0}", DateTime.UtcNow.ToString("yyyyMMdd"));
-                Helper.WriteToFile(message, path, DateTime.UtcNow.ToString("hh_00 tt"), false);
-            }
-            return this.StatusCode(Convert.ToInt32(statusCode), dctData);
-        }
-
-        [HttpPost]
-        [Route("get-users")]
-        public async Task<IActionResult> GetUsers([FromBody] GetUserReq model)
-        {
-            DateTime reqDateTime = DateTime.UtcNow;
-            string StrSystemError = "NO SYSTEM ERROR.";
-            string StrDBError = string.Empty;
-            HttpStatusCode statusCode = HttpStatusCode.OK;
-            TranStatus tranStatus = new TranStatus() { ReturnMessage = "Success.", Code = 0 };
-            Dictionary<string, object?> dctData = new Dictionary<string, object?>();
-            List<UserItemRes> response = new List<UserItemRes>();
-            int TotalRecords = 0;
-
-            try
-            {
-                model ??= new GetUserReq();
-                (response, TotalRecords, StrDBError) = await _authService.GetUsersAsync(model);
-
-                if (!string.IsNullOrEmpty(StrDBError))
-                {
-                    tranStatus.ReturnMessage = "Something went wrong(DB).";
-                    tranStatus.Code = 2;
-                }
-            }
-            catch (Exception ex)
-            {
-                tranStatus.Code = 2;
-                tranStatus.ReturnMessage = "Something went wrong.";
-                statusCode = HttpStatusCode.BadRequest;
-                StrSystemError = JsonConvert.SerializeObject(ex);
-            }
-            finally
-            {
-                dctData.Add("Data", response);
-                dctData.Add("TotalRecords", TotalRecords);
-                dctData.Add("Status", tranStatus);
-
-                string message = "*******************************************************************" + Environment.NewLine
-                                 + "Request UTC: " + reqDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Response UTC: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Request: " + JsonConvert.SerializeObject(model) + Environment.NewLine
-                                 + "Response: " + JsonConvert.SerializeObject(dctData) + Environment.NewLine
-                                 + "Message: " + StrSystemError + Environment.NewLine
-                                 + "DataBase Error: " + StrDBError + Environment.NewLine;
-
-                string path = string.Format("\\Auth\\GetUsers\\{0}", DateTime.UtcNow.ToString("yyyyMMdd"));
-                Helper.WriteToFile(message, path, DateTime.UtcNow.ToString("hh_00 tt"), false);
-            }
-            return this.StatusCode(Convert.ToInt32(statusCode), dctData);
-        }
-
-        [HttpPost]
-        [Route("toggle-approval/{id}")]
-        public async Task<IActionResult> ToggleApproval(int id, [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ToggleApprovalReq? model)
-        {
-            DateTime reqDateTime = DateTime.UtcNow;
-            string StrSystemError = "NO SYSTEM ERROR.";
-            string StrDBError = string.Empty;
-            HttpStatusCode statusCode = HttpStatusCode.OK;
-            TranStatus tranStatus = new TranStatus() { ReturnMessage = "Success.", Code = 0 };
-            Dictionary<string, object?> dctData = new Dictionary<string, object?>();
-            bool success = false;
-            int TotalRecords = 0;
-
-            model ??= new ToggleApprovalReq();
-            model.UserId = id;
-
-            try
-            {
-                (success, TotalRecords, StrDBError) = await _authService.ToggleUserApprovalAsync(model);
-
-                if (!string.IsNullOrEmpty(StrDBError))
-                {
-                    tranStatus.ReturnMessage = "Something went wrong(DB).";
-                    tranStatus.Code = 2;
-                }
-                else
-                {
-                    tranStatus.ReturnMessage = success ? "User approval status updated." : "User not found.";
-                }
-            }
-            catch (Exception ex)
-            {
-                tranStatus.Code = 2;
-                tranStatus.ReturnMessage = "Something went wrong.";
-                statusCode = HttpStatusCode.BadRequest;
-                StrSystemError = JsonConvert.SerializeObject(ex);
-            }
-            finally
-            {
-                dctData.Add("Data", success);
-                dctData.Add("TotalRecords", TotalRecords);
-                dctData.Add("Status", tranStatus);
-                dctData.Add("success", success);
-
-                string message = "*******************************************************************" + Environment.NewLine
-                                 + "Request UTC: " + reqDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Response UTC: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine
-                                 + "Request: " + JsonConvert.SerializeObject(model) + Environment.NewLine
-                                 + "Response: " + JsonConvert.SerializeObject(dctData) + Environment.NewLine
-                                 + "Message: " + StrSystemError + Environment.NewLine
-                                 + "DataBase Error: " + StrDBError + Environment.NewLine;
-
-                string path = string.Format("\\Auth\\ToggleApproval\\{0}", DateTime.UtcNow.ToString("yyyyMMdd"));
                 Helper.WriteToFile(message, path, DateTime.UtcNow.ToString("hh_00 tt"), false);
             }
             return this.StatusCode(Convert.ToInt32(statusCode), dctData);

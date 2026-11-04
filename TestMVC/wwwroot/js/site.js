@@ -191,6 +191,12 @@ async function spaNavigate(url, pushState = true) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
 
+        // If returned content is the Login Page (user logged out or session expired), force full-page reload
+        if (doc.querySelector('.login-wrapper') || doc.querySelector('.login-card') || doc.querySelector('#loginForm')) {
+            window.location.href = '/Account/Login';
+            return;
+        }
+
         const newMain = doc.querySelector('#mainContent') || doc.querySelector('main');
         const newTitle = doc.querySelector('title');
 
@@ -372,6 +378,12 @@ document.addEventListener('click', function (e) {
     try {
         const linkUrl = new URL(href, window.location.origin);
         if (linkUrl.origin === window.location.origin) {
+            const path = linkUrl.pathname.toLowerCase();
+            // Do NOT intercept Logout, Login, or any links marked with data-no-spa
+            if (link.hasAttribute('data-no-spa') || path.includes('/account/logout') || path.includes('/account/login')) {
+                return;
+            }
+
             e.preventDefault();
             // Close mobile sidebar if open
             const sidebar = document.getElementById('appSidebar');

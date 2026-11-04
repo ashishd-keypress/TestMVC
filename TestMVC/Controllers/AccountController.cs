@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -21,51 +22,70 @@ namespace TestMVC.Controllers
 
         // GET: /Account/Login
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Login(string? returnUrl = null)
         {
             if (User.Identity != null && User.Identity.IsAuthenticated)
             {
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !returnUrl.Equals("/Account/Login", StringComparison.OrdinalIgnoreCase) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Redirect(returnUrl);
+                }
                 return RedirectToAction("Index", "Home");
             }
 
             ViewBag.ReturnUrl = returnUrl;
-            return View(new LoginReq());
+            string code = GenerateCaptchaCode();
+            var model = new LoginReq
+            {
+                ExpectedValidationCode = code
+            };
+            ViewBag.ValidationCode = code;
+
+            return View(model);
         }
 
         // POST: /Account/Login
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginReq model, string? returnUrl = null)
         {
             ViewBag.ReturnUrl = returnUrl;
 
-            if (!ModelState.IsValid)
+            // 1. Verify Validation Code
+            if (string.IsNullOrWhiteSpace(model.ValidationCode) ||
+                string.IsNullOrWhiteSpace(model.ExpectedValidationCode) ||
+                !string.Equals(model.ValidationCode.Trim(), model.ExpectedValidationCode.Trim(), StringComparison.OrdinalIgnoreCase))
             {
+                ModelState.AddModelError(string.Empty, "Invalid validation code. Please enter the 4-digit code shown.");
+                RefreshCaptcha(model);
                 return View(model);
             }
 
+            // 2. Validate input fields
+            if (!ModelState.IsValid)
+            {
+                RefreshCaptcha(model);
+                return View(model);
+            }
+
+            // 3. Authenticate Credentials
             var (res, _, err) = await _authService.LoginAsync(model);
 
             if (!res.Success)
             {
-                if (!string.IsNullOrEmpty(err))
-                {
-                    ModelState.AddModelError(string.Empty, "System/Database error: " + err);
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, res.Message);
-                }
+                ModelState.AddModelError(string.Empty, "Invalid username or password. Please check your credentials.");
+                RefreshCaptcha(model);
                 return View(model);
             }
 
-            // Create Authentication Cookie Claims
+            // 4. Create Authentication Cookie Claims
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, res.UserId.ToString()),
                 new Claim(ClaimTypes.Name, res.Username),
-                new Claim(ClaimTypes.MobilePhone, res.MobileNumber),
-                new Claim("IsApproved", res.IsApproved.ToString())
+                new Claim(ClaimTypes.MobilePhone, res.MobileNumber ?? "")
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -80,9 +100,9 @@ namespace TestMVC.Controllers
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
 
-            TempData["Success"] = $"Welcome back, {res.Username}!";
+            TempData["Success"] = $"Welcome, {res.Username}!";
 
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !returnUrl.Equals("/Account/Login", StringComparison.OrdinalIgnoreCase) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
             {
                 return Redirect(returnUrl);
             }
@@ -90,45 +110,13 @@ namespace TestMVC.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // GET: /Account/Register
+        // GET: /Account/GetNewCaptcha
         [HttpGet]
-        public IActionResult Register()
+        [AllowAnonymous]
+        public IActionResult GetNewCaptcha()
         {
-            if (User.Identity != null && User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
-            return View(new RegisterReq());
-        }
-
-        // POST: /Account/Register
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterReq model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
-
-            var (res, _, err) = await _authService.RegisterAsync(model);
-
-            if (!res.Success)
-            {
-                if (!string.IsNullOrEmpty(err))
-                {
-                    ModelState.AddModelError(string.Empty, "System/Database error: " + err);
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, res.Message);
-                }
-                return View(model);
-            }
-
-            TempData["PendingApproval"] = res.Message;
-            return RedirectToAction(nameof(Login));
+            string code = GenerateCaptchaCode();
+            return Json(new { code });
         }
 
         // GET or POST: /Account/Logout
@@ -137,43 +125,28 @@ namespace TestMVC.Controllers
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["Success"] = "You have been logged out successfully.";
-            return RedirectToAction(nameof(Login));
-        }
-
-        // GET: /Account/Users (User Approval Admin Management)
-        [HttpGet]
-        public async Task<IActionResult> Users(string? search, bool? isApproved)
-        {
-            var req = new GetUserReq
-            {
-                SearchText = search,
-                IsApproved = isApproved,
-                PageSize = 100
-            };
-
-            var (users, total, _) = await _authService.GetUsersAsync(req);
-            ViewBag.Search = search;
-            ViewBag.IsApproved = isApproved;
-            ViewBag.Total = total;
-
-            return View(users);
-        }
-
-        // POST: /Account/ToggleApproval/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleApproval(int id)
-        {
-            var (success, _, _) = await _authService.ToggleUserApprovalAsync(new ToggleApprovalReq { UserId = id });
 
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
-                return Json(new { success = success, message = success ? "User approval updated." : "Failed to update." });
+                return Json(new { success = true, redirectUrl = Url.Action("Login", "Account") });
             }
 
-            TempData["Success"] = "User approval status updated.";
-            return RedirectToAction(nameof(Users));
+            return RedirectToAction(nameof(Login));
+        }
+
+        private static string GenerateCaptchaCode()
+        {
+            return Random.Shared.Next(1000, 9999).ToString();
+        }
+
+        private void RefreshCaptcha(LoginReq model)
+        {
+            string newCode = GenerateCaptchaCode();
+            model.ExpectedValidationCode = newCode;
+            model.ValidationCode = string.Empty;
+            ViewBag.ValidationCode = newCode;
         }
     }
 }

@@ -21,64 +21,56 @@
         @Html.AntiForgeryToken()
     </form>
 
-    <div class="app-layout">
-        <!-- Left Sidebar Navigation (~20% width) -->
-        <aside class="app-sidebar" id="appSidebar">
-            <div class="sidebar-header">
-                <a class="sidebar-brand spa-link" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="brand-badge">⚡</span>
-                    <div class="brand-details">
-                        <span class="brand-title">TestMVC</span>
-                        <span class="brand-subtitle">Store Manager</span>
-                    </div>
-                </a>
-            </div>
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <div class="app-layout">
+            <!-- Left Sidebar Navigation (~20% width) -->
+            <aside class="app-sidebar" id="appSidebar">
+                <div class="sidebar-header">
+                    <a class="sidebar-brand spa-link" asp-area="" asp-controller="Home" asp-action="Index">
+                        <span class="brand-badge">⚡</span>
+                        <div class="brand-details">
+                            <span class="brand-title">TestMVC</span>
+                            <span class="brand-subtitle">Store Manager</span>
+                        </div>
+                    </a>
+                </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-section-heading">MAIN MENU</div>
-                <ul class="sidebar-nav" id="mainNavBar">
-                    <!-- 1. DashBoard -->
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Home" asp-action="Index">
-                            <span class="nav-icon">📊</span>
-                            <span class="nav-label">DashBoard</span>
-                        </a>
-                    </li>
-                    <!-- 2. Brands -->
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Brand" asp-action="Index">
-                            <span class="nav-icon">🏷️</span>
-                            <span class="nav-label">Brands</span>
-                        </a>
-                    </li>
-                    <!-- 3. Categories -->
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Category" asp-action="Index">
-                            <span class="nav-icon">📁</span>
-                            <span class="nav-label">Categories</span>
-                        </a>
-                    </li>
-                    <!-- 4. Products -->
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Product" asp-action="Index">
-                            <span class="nav-icon">📦</span>
-                            <span class="nav-label">Products</span>
-                        </a>
-                    </li>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-heading">MAIN MENU</div>
+                    <ul class="sidebar-nav" id="mainNavBar">
+                        <!-- 1. DashBoard -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Home" asp-action="Index">
+                                <span class="nav-icon">📊</span>
+                                <span class="nav-label">DashBoard</span>
+                            </a>
+                        </li>
+                        <!-- 2. Brands -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Brand" asp-action="Index">
+                                <span class="nav-icon">🏷️</span>
+                                <span class="nav-label">Brands</span>
+                            </a>
+                        </li>
+                        <!-- 3. Categories -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Category" asp-action="Index">
+                                <span class="nav-icon">📁</span>
+                                <span class="nav-label">Categories</span>
+                            </a>
+                        </li>
+                        <!-- 4. Products -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Product" asp-action="Index">
+                                <span class="nav-icon">📦</span>
+                                <span class="nav-label">Products</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
 
-                    <!-- 5. User Approvals -->
-                    <li class="sidebar-nav-item mt-2">
-                        <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Account" asp-action="Users">
-                            <span class="nav-icon">👥</span>
-                            <span class="nav-label">User Approvals</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="sidebar-footer">
-                @if (User.Identity != null && User.Identity.IsAuthenticated)
-                {
+                <div class="sidebar-footer">
                     <div class="d-flex flex-column gap-2 w-100">
                         <div class="user-pill d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center gap-2">
@@ -86,40 +78,38 @@
                                 <span class="user-name fw-bold text-dark">@User.Identity.Name</span>
                             </div>
                         </div>
-                        <a asp-controller="Account" asp-action="Logout" class="btn btn-sm btn-outline-danger w-100 py-1" style="font-size: 0.8rem;">
-                            🚪 Sign Out
+                        <a asp-controller="Account" asp-action="Logout" data-no-spa class="btn btn-sm btn-outline-danger w-100 py-1 d-flex align-items-center justify-content-center gap-1" style="font-size: 0.85rem;">
+                            <span>🚪</span>
+                            <span>Logout</span>
                         </a>
                     </div>
-                }
-                else
-                {
-                    <div class="d-flex gap-2 w-100">
-                        <a asp-controller="Account" asp-action="Login" class="btn btn-sm btn-primary flex-fill py-1" style="font-size: 0.8rem;">
-                            Sign In
-                        </a>
-                        <a asp-controller="Account" asp-action="Register" class="btn btn-sm btn-outline-primary flex-fill py-1" style="font-size: 0.8rem;">
-                            Register
-                        </a>
-                    </div>
-                }
+                </div>
+            </aside>
+
+            <!-- Right Content Area (~80% width) -->
+            <div class="app-main-area">
+                <!-- Mobile Toggle Header (Visible on small screens only) -->
+                <header class="mobile-topbar d-md-none">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="mobileSidebarToggle">
+                        ☰ Menu
+                    </button>
+                    <span class="fw-bold">TestMVC</span>
+                </header>
+
+                <main role="main" id="mainContent" class="main-content-container page-fade-in">
+                    @RenderBody()
+                </main>
             </div>
-        </aside>
-
-        <!-- Right Content Area (~80% width) -->
-        <div class="app-main-area">
-            <!-- Mobile Toggle Header (Visible on small screens only) -->
-            <header class="mobile-topbar d-md-none">
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="mobileSidebarToggle">
-                    ☰ Menu
-                </button>
-                <span class="fw-bold">TestMVC</span>
-            </header>
-
-            <main role="main" id="mainContent" class="main-content-container page-fade-in">
+        </div>
+    }
+    else
+    {
+        <div class="login-fullscreen-layout">
+            <main role="main">
                 @RenderBody()
             </main>
         </div>
-    </div>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

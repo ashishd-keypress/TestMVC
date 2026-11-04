@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
@@ -10,6 +11,7 @@ using TestMVC.Models.ReqRes;
 
 namespace TestMVC.Controllers
 {
+    [Authorize]
     public class ProductController : Controller
     {
         private const int PageSize = 10;

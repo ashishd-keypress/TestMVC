@@ -15,13 +15,14 @@ namespace Utility
             lock (_lock)
             {
                 if (_initialized) return;
+                
 
                 try
                 {
                     using var connection = new SqlConnection(connectionString);
                     connection.Open();
 
-                    // 1. Ensure Users table
+                    // 1. Ensure Users table exists (WITHOUT IsApproved)
                     using (var cmd = new SqlCommand(@"
                         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
                         BEGIN
@@ -31,7 +32,6 @@ namespace Utility
                                 PasswordHash NVARCHAR(500) NOT NULL,
                                 PasswordSalt NVARCHAR(200) NOT NULL,
                                 MobileNumber NVARCHAR(20) NOT NULL,
-                                IsApproved BIT NOT NULL DEFAULT 0,
                                 IsDelete BIT NOT NULL DEFAULT 0,
                                 CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
                                 LastLoginDate DATETIME NULL
@@ -41,7 +41,61 @@ namespace Utility
                         cmd.ExecuteNonQuery();
                     }
 
-                    // 2. Ensure Brand.UserId
+                    // 2. Drop IsApproved column and its default constraint if it exists (completely remove User Approvals from DB)
+                    using (var cmd = new SqlCommand(@"
+                        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'IsApproved')
+                        BEGIN
+                            DECLARE @constraintName NVARCHAR(200);
+                            SELECT @constraintName = d.name
+                            FROM sys.default_constraints d
+                            JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+                            WHERE d.parent_object_id = OBJECT_ID('dbo.Users') AND c.name = 'IsApproved';
+
+                            IF @constraintName IS NOT NULL
+                            BEGIN
+                                EXEC('ALTER TABLE dbo.Users DROP CONSTRAINT ' + @constraintName);
+                            END
+
+                            ALTER TABLE dbo.Users DROP COLUMN IsApproved;
+                        END;", connection))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 3. Seed / Ensure Admin User: Ashish@123 with Password: xyz@123
+                    PasswordSecurity.CreatePasswordHash("xyz@123", out string hash, out string salt);
+
+                    using (var cmd = new SqlCommand(@"
+                        IF EXISTS (SELECT 1 FROM dbo.Users WHERE LOWER(Username) = 'ashish@123')
+                        BEGIN
+                            UPDATE dbo.Users 
+                            SET PasswordHash = @PasswordHash, 
+                                PasswordSalt = @PasswordSalt,
+                                IsDelete = 0
+                            WHERE LOWER(Username) = 'ashish@123';
+                        END
+                        ELSE IF EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = 1)
+                        BEGIN
+                            -- Update user 1 to Ashish@123 so that existing brands/products/categories (owned by UserId 1) are retained
+                            UPDATE dbo.Users
+                            SET Username = 'Ashish@123',
+                                PasswordHash = @PasswordHash,
+                                PasswordSalt = @PasswordSalt,
+                                IsDelete = 0
+                            WHERE UserId = 1;
+                        END
+                        ELSE
+                        BEGIN
+                            INSERT INTO dbo.Users (Username, PasswordHash, PasswordSalt, MobileNumber, IsDelete, CreatedDate)
+                            VALUES ('Ashish@123', @PasswordHash, @PasswordSalt, '9876543210', 0, GETDATE());
+                        END;", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@PasswordHash", hash);
+                        cmd.Parameters.AddWithValue("@PasswordSalt", salt);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 4. Ensure Brand.UserId
                     using (var cmd = new SqlCommand(@"
                         IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Brand')
                            AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Brand') AND name = 'UserId')
@@ -62,7 +116,7 @@ namespace Utility
                         cmd.ExecuteNonQuery();
                     }
 
-                    // 3. Ensure Category.UserId
+                    // 5. Ensure Category.UserId
                     using (var cmd = new SqlCommand(@"
                         IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Category')
                            AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Category') AND name = 'UserId')
@@ -83,7 +137,7 @@ namespace Utility
                         cmd.ExecuteNonQuery();
                     }
 
-                    // 4. Ensure Product.UserId
+                    // 6. Ensure Product.UserId
                     using (var cmd = new SqlCommand(@"
                         IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Product')
                            AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'UserId')

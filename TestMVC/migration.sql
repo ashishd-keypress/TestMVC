@@ -629,7 +629,7 @@ END;
 GO
 
 -- ==========================================================
--- 10. Users Table for Secure Authentication & Approval
+-- 10. Users Table for Secure Authentication
 -- ==========================================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
 BEGIN
@@ -639,11 +639,29 @@ BEGIN
         PasswordHash NVARCHAR(500) NOT NULL,
         PasswordSalt NVARCHAR(200) NOT NULL,
         MobileNumber NVARCHAR(20) NOT NULL,
-        IsApproved BIT NOT NULL DEFAULT 0, -- False: pending approval, True: allowed to login
         IsDelete BIT NOT NULL DEFAULT 0,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         LastLoginDate DATETIME NULL
     );
+END
+ELSE
+BEGIN
+    -- Drop IsApproved column if previously present
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'IsApproved')
+    BEGIN
+        DECLARE @constraintName NVARCHAR(200);
+        SELECT @constraintName = d.name
+        FROM sys.default_constraints d
+        JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+        WHERE d.parent_object_id = OBJECT_ID('dbo.Users') AND c.name = 'IsApproved';
+
+        IF @constraintName IS NOT NULL
+        BEGIN
+            EXEC('ALTER TABLE dbo.Users DROP CONSTRAINT ' + @constraintName);
+        END
+
+        ALTER TABLE dbo.Users DROP COLUMN IsApproved;
+    END
 END
 GO
 

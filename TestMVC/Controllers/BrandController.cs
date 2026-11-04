@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using TestMVC.Models.ReqRes;
 
 namespace TestMVC.Controllers
 {
+    [Authorize]
     public class BrandController : Controller
     {
         private readonly IBrandService _brandService;

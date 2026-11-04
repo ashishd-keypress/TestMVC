@@ -1,118 +1,301 @@
 @model TestMVC.Models.ReqRes.LoginReq
 @{
-    ViewData["Title"] = "User Login";
+    ViewData["Title"] = "Welcome to Admin Panel";
 }
 
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow border-0 rounded-4 overflow-hidden">
-                <div class="card-header bg-white border-bottom text-center py-4">
-                    <div class="brand-badge mx-auto mb-2" style="width: 50px; height: 50px; font-size: 1.5rem;">
-                        🔐
+<div class="login-wrapper">
+    <div class="login-card shadow-sm">
+        <div class="login-header">
+            <h2 class="login-title">Welcome to Admin Panel</h2>
+        </div>
+
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+        {
+            <div class="alert alert-danger py-2 px-3 mb-3 rounded-3 small border-0" style="background-color: #FEE2E2; color: #991B1B;">
+                @foreach (var error in ViewData.ModelState[string.Empty]!.Errors)
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <span>⚠️</span>
+                        <span>@error.ErrorMessage</span>
                     </div>
-                    <h3 class="fw-bold text-dark mb-1">Welcome Back</h3>
-                    <p class="text-muted small mb-0">Enter your credentials to access your account</p>
-                </div>
+                }
+            </div>
+        }
 
-                <div class="card-body p-4 p-md-5">
-                    @if (TempData["PendingApproval"] != null)
-                    {
-                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fs-5">⏳</span>
-                                <div>
-                                    <strong>Pending Approval</strong>
-                                    <div class="small">@TempData["PendingApproval"]</div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    }
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success py-2 px-3 mb-3 rounded-3 small border-0" style="background-color: #DCFCE7; color: #166534;">
+                @TempData["Success"]
+            </div>
+        }
 
-                    @if (TempData["Success"] != null)
-                    {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            @TempData["Success"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    }
+        <form asp-action="Login" method="post" id="loginForm" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+            <input type="hidden" asp-for="ExpectedValidationCode" id="expectedValidationCode" value="@(Model?.ExpectedValidationCode ?? ViewBag.ValidationCode)" />
 
-                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
-                    {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    }
+            <!-- 1. Username Field -->
+            <div class="custom-field-wrap mb-3">
+                <input asp-for="Username"
+                       class="custom-field-input"
+                       placeholder="Username"
+                       autocomplete="username"
+                       autofocus />
+            </div>
+            <span asp-validation-for="Username" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
 
-                    <form asp-action="Login" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+            <!-- 2. Password Field with Eye Toggle Icon -->
+            <div class="custom-field-wrap mb-3">
+                <input asp-for="Password"
+                       type="password"
+                       id="loginPasswordInput"
+                       class="custom-field-input"
+                       placeholder="Password"
+                       autocomplete="current-password" />
+                <button type="button"
+                        class="field-icon-btn"
+                        id="btnTogglePassword"
+                        onclick="togglePasswordVisibility('loginPasswordInput', this)"
+                        title="Show/Hide Password"
+                        aria-label="Toggle Password Visibility">
+                    <!-- Slashed Eye SVG Icon (matching screenshot) -->
+                    <svg id="eyeOffIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                    <!-- Open Eye SVG Icon (hidden by default) -->
+                    <svg id="eyeOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </button>
+            </div>
+            <span asp-validation-for="Password" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
 
-                        <!-- Username -->
-                        <div class="mb-3">
-                            <label asp-for="Username" class="form-label fw-semibold">
-                                Username <span class="required-star">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-muted">👤</span>
-                                <input asp-for="Username" class="form-control" placeholder="Enter your username" autocomplete="username" autofocus />
-                            </div>
-                            <span asp-validation-for="Username" class="text-danger small"></span>
-                        </div>
-
-                        <!-- Password -->
-                        <div class="mb-4">
-                            <label asp-for="Password" class="form-label fw-semibold">
-                                Password <span class="required-star">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-muted">🔑</span>
-                                <input asp-for="Password" type="password" id="loginPasswordInput" class="form-control" placeholder="Enter your password" autocomplete="current-password" />
-                                <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-toggle-password="loginPasswordInput" onclick="togglePasswordVisibility('loginPasswordInput', this)" title="Show/Hide Password" aria-label="Toggle Password Visibility">
-                                    👁️
-                                </button>
-                            </div>
-                            <span asp-validation-for="Password" class="text-danger small"></span>
-                        </div>
-
-                        <!-- Login Button -->
-                        <div class="d-grid mb-3">
-                            <button type="submit" class="btn btn-primary py-2 fw-semibold shadow-sm">
-                                Sign In &rarr;
-                            </button>
-                        </div>
-
-                        <div class="text-center pt-2">
-                            <p class="text-muted small mb-0">
-                                Don't have an account?
-                                <a asp-action="Register" class="text-primary fw-bold text-decoration-none">
-                                    Register here
-                                </a>
-                            </p>
-                        </div>
-                    </form>
+            <!-- 3. Validation Code Field with Dynamic Captcha Code & Refresh Button -->
+            <div class="custom-field-wrap mb-4">
+                <input asp-for="ValidationCode"
+                       id="validationCodeInput"
+                       class="custom-field-input"
+                       placeholder="Validation Code"
+                       maxlength="4"
+                       autocomplete="off" />
+                <div class="captcha-addon">
+                    <span id="captchaCodeText" class="captcha-digits">@(Model?.ExpectedValidationCode ?? ViewBag.ValidationCode)</span>
+                    <button type="button"
+                            class="field-icon-btn btn-refresh"
+                            id="btnRefreshCaptcha"
+                            onclick="refreshCaptchaCode()"
+                            title="Refresh Validation Code"
+                            aria-label="Refresh Validation Code">
+                        <!-- Reload Arrows SVG Icon (matching screenshot) -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
-        </div>
+            <span asp-validation-for="ValidationCode" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
+
+            <!-- 4. Login Button (Yellow/Amber Rounded Button) -->
+            <div class="mb-2">
+                <button type="submit" class="btn-custom-login" id="btnLoginSubmit">
+                    Login
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+
+<style>
+    /* Full Page Background */
+    .login-wrapper {
+        min-height: calc(100vh - 40px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background-color: #FAF8F5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* White Rounded Container */
+    .login-card {
+        background: #FFFFFF;
+        width: 100%;
+        max-width: 480px;
+        border-radius: 20px;
+        padding: 44px 38px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05), 0 5px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    /* Title */
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .login-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #1F2937;
+        margin: 0;
+        letter-spacing: -0.3px;
+    }
+
+    /* Soft Rounded Gray Inputs (Matching Screenshot) */
+    .custom-field-wrap {
+        background-color: #DDE2E8;
+        border-radius: 12px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        transition: all 0.2s ease;
+        border: 1.5px solid transparent;
+    }
+
+    .custom-field-wrap:focus-within {
+        background-color: #D6DCE3;
+        border-color: #CBD5E1;
+        box-shadow: 0 0 0 3px rgba(245, 176, 39, 0.15);
+    }
+
+    .custom-field-input {
+        flex: 1;
+        height: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-size: 15px;
+        font-weight: 500;
+        color: #1F2937;
+    }
+
+    .custom-field-input::placeholder {
+        color: #64748B;
+        opacity: 1;
+        font-weight: 500;
+    }
+
+    /* Field Accessory Buttons (Eye & Refresh) */
+    .field-icon-btn {
+        background: none;
+        border: none;
+        padding: 4px;
+        color: #1F2937;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.85;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .field-icon-btn:hover {
+        opacity: 1;
+    }
+
+    /* Validation Code & Refresh Container */
+    .captcha-addon {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: 10px;
+        user-select: none;
+    }
+
+    .captcha-digits {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 17px;
+        font-weight: 700;
+        color: #1E293B;
+        letter-spacing: 2.5px;
+    }
+
+    .btn-refresh:hover svg {
+        transform: rotate(180deg);
+        transition: transform 0.35s ease;
+    }
+
+    /* Golden Yellow Login Button (Matching Screenshot) */
+    .btn-custom-login {
+        width: 100%;
+        height: 52px;
+        background-color: #F5B027;
+        color: #1F2937;
+        border: none;
+        border-radius: 12px;
+        font-size: 17px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(245, 176, 39, 0.22);
+        transition: all 0.2s ease;
+        margin-top: 10px;
+    }
+
+    .btn-custom-login:hover {
+        background-color: #ECA317;
+        box-shadow: 0 6px 16px rgba(245, 176, 39, 0.32);
+        transform: translateY(-1px);
+    }
+
+    .btn-custom-login:active {
+        transform: translateY(0);
+    }
+</style>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     <script>
         function togglePasswordVisibility(inputId, btn) {
             const input = document.getElementById(inputId);
+            const eyeOff = document.getElementById('eyeOffIcon');
+            const eyeOn = document.getElementById('eyeOnIcon');
+
             if (input) {
                 if (input.type === 'password') {
                     input.type = 'text';
-                    btn.innerText = '🙈';
+                    if (eyeOff) eyeOff.style.display = 'none';
+                    if (eyeOn) eyeOn.style.display = 'block';
                 } else {
                     input.type = 'password';
-                    btn.innerText = '👁️';
+                    if (eyeOff) eyeOff.style.display = 'block';
+                    if (eyeOn) eyeOn.style.display = 'none';
                 }
             }
+        }
+
+        function refreshCaptchaCode() {
+            const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const captchaText = document.getElementById('captchaCodeText');
+            const expectedInput = document.getElementById('expectedValidationCode');
+            const validationInput = document.getElementById('validationCodeInput');
+
+            if (captchaText) captchaText.innerText = newCode;
+            if (expectedInput) expectedInput.value = newCode;
+            if (validationInput) {
+                validationInput.value = '';
+                validationInput.focus();
+            }
+
+            fetch('/Account/GetNewCaptcha')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.code) {
+                        if (captchaText) captchaText.innerText = data.code;
+                        if (expectedInput) expectedInput.value = data.code;
+                    }
+                })
+                .catch(() => {
+                    // Local fallback code is already set
+                });
         }
     </script>
 }

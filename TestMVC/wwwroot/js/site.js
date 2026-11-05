@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TestMVC - Smooth SPA Navigation & AJAX Client Handlers
  */
 
@@ -15,31 +15,77 @@ function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `custom-toast custom-toast-${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('title', 'Click to dismiss');
 
-    let icon = '✓';
-    if (type === 'error') icon = '✕';
-    if (type === 'info') icon = 'ℹ';
+    let iconSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.485 1.929a1 1 0 0 1 1.414 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L6 9.086l7.485-7.157z"/></svg>';
+    if (type === 'error') {
+        iconSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>';
+    } else if (type === 'info') {
+        iconSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>';
+    }
 
     toast.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold">${icon}</span>
-            <span>${escapeHtml(message)}</span>
+        <div class="d-flex align-items-center gap-2 flex-grow-1">
+            <span class="custom-toast-icon">${iconSvg}</span>
+            <span class="fw-medium">${escapeHtml(message)}</span>
         </div>
-        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.75rem;" onclick="this.parentElement.remove()"></button>
+        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.72rem;" aria-label="Close"></button>
+        <div class="toast-progress-bar"></div>
     `;
+
+    let isDismissed = false;
+    let autoDismissTimer = null;
+
+    function dismissToast() {
+        if (isDismissed) return;
+        isDismissed = true;
+
+        if (autoDismissTimer) {
+            clearTimeout(autoDismissTimer);
+            autoDismissTimer = null;
+        }
+
+        // Apply exit animation class
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+
+        // Remove element from DOM once exit transition ends
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 350);
+    }
+
+    // Disappear immediately when clicked anywhere on the toast
+    toast.addEventListener('click', function () {
+        dismissToast();
+    });
+
+    // Close button click handler
+    const closeBtn = toast.querySelector('.btn-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            dismissToast();
+        });
+    }
 
     container.appendChild(toast);
 
-    // Trigger animation
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
+    // Trigger smooth entrance animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+    });
 
-    // Auto dismiss after 3.5 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
+    // Auto dismiss after exactly 3 seconds (3000ms)
+    autoDismissTimer = setTimeout(() => {
+        dismissToast();
+    }, 3000);
 }
 
 // HTML escape utility
@@ -401,8 +447,34 @@ window.addEventListener('popstate', function (e) {
     spaNavigate(window.location.href, false);
 });
 
-// Initialize active state on first load
+// Global Theme Switcher (Light / Dark Mode)
+function initThemeSwitcher() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+
+    document.addEventListener('click', function (e) {
+        const toggleBtn = e.target.closest('#themeToggleBtn, .theme-toggle-btn');
+        if (toggleBtn) {
+            e.preventDefault();
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(nextTheme);
+        }
+    });
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+
+    document.querySelectorAll('.theme-mode-label').forEach(el => {
+        el.innerText = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+    });
+}
+
+// Initialize on first load
 document.addEventListener('DOMContentLoaded', function () {
+    initThemeSwitcher();
     updateActiveNav(window.location.href);
 });
 

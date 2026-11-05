@@ -1,79 +1,96 @@
-@model TestMVC.Models.DashboardViewModel
+﻿@model TestMVC.Models.DashboardViewModel
 @{
     ViewData["Title"] = "DashBoard";
 }
 
-<div class="dashboard-wrapper">
-    <!-- Looping Autoplay Background Video -->
-    <video autoplay muted loop playsinline id="dashboardVideoBg" class="dashboard-video-bg">
-        <source src="~/videos/dashboard-bg.mp4" type="video/mp4" />
-        <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
-    </video>
+<!-- Clean & Elegant Gradient Hero Banner (No Videos) -->
+<div class="dashboard-hero-banner mb-4">
+    <div class="hero-glow-orb hero-glow-1"></div>
+    <div class="hero-glow-orb hero-glow-2"></div>
+    <div class="hero-glow-orb hero-glow-3"></div>
 
-    <!-- Glassmorphic Overlay -->
-    <div class="dashboard-overlay"></div>
-
-    <!-- Dashboard Content -->
-    <div class="dashboard-content text-white">
-        <div class="mb-4">
-            <span class="badge bg-primary px-3 py-2 text-white mb-2 fs-7 text-uppercase" style="letter-spacing: 0.08em;">
-                Control Center
+    <div class="dashboard-hero-content">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="hero-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>STORE MANAGEMENT HUB</span>
             </span>
-            <h1 class="display-5 fw-bold mb-2 text-white">Store Dashboard</h1>
-            <p class="text-white-50 fs-6 mb-0">
-                Real-time inventory statistics, brands, categories, and quick actions.
-            </p>
         </div>
 
-        <!-- KPI Metrics Grid -->
+        <h1 class="hero-title mb-2">Store Overview & Performance</h1>
+        <p class="hero-subtitle mb-4">
+            Live catalog statistics, inventory metrics, brands, and administrative actions.
+        </p>
+
+        <!-- KPI Metrics Grid with Rich Jewel Colors -->
         <div class="row g-4 mb-4">
-            <!-- Active Products Card -->
+            <!-- 1. Active Products Card (Sapphire / Royal Indigo) -->
             <div class="col-md-4">
-                <a asp-controller="Product" asp-action="Index" class="kpi-card h-100">
+                <a asp-controller="Product" asp-action="Index" class="kpi-card kpi-card-product h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="kpi-icon kpi-icon-product">
-                            📦
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
                         </div>
-                        <span class="badge bg-success text-white">Active</span>
+                        <span class="badge-status-pill badge-status-active">
+                            <span class="status-dot"></span> Active
+                        </span>
                     </div>
-                    <div class="kpi-label mb-1">Active Products</div>
+                    <div class="kpi-label">Active Products</div>
                     <div class="kpi-number counter" data-target="@Model.TotalProducts">@Model.TotalProducts</div>
-                    <div class="mt-3 text-primary small fw-semibold">
-                        View all products &rarr;
+                    <div class="kpi-footer text-primary d-flex align-items-center gap-1 mt-3">
+                        <span>Explore inventory</span>
+                        <span class="arrow">&rarr;</span>
                     </div>
                 </a>
             </div>
 
-            <!-- Active Brands Card -->
+            <!-- 2. Active Brands Card (Amethyst / Orchid Purple) -->
             <div class="col-md-4">
-                <a asp-controller="Brand" asp-action="Index" class="kpi-card h-100">
+                <a asp-controller="Brand" asp-action="Index" class="kpi-card kpi-card-brand h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="kpi-icon kpi-icon-brand">
-                            🏷️
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
                         </div>
-                        <span class="badge bg-success text-white">Active</span>
+                        <span class="badge-status-pill badge-status-active">
+                            <span class="status-dot"></span> Active
+                        </span>
                     </div>
-                    <div class="kpi-label mb-1">Active Brands</div>
+                    <div class="kpi-label">Active Brands</div>
                     <div class="kpi-number counter" data-target="@Model.TotalBrands">@Model.TotalBrands</div>
-                    <div class="mt-3 text-primary small fw-semibold">
-                        Manage brands &rarr;
+                    <div class="kpi-footer text-purple d-flex align-items-center gap-1 mt-3">
+                        <span>Manage partners</span>
+                        <span class="arrow">&rarr;</span>
                     </div>
                 </a>
             </div>
 
-            <!-- Active Categories Card -->
+            <!-- 3. Active Categories Card (Emerald / Teal) -->
             <div class="col-md-4">
-                <a asp-controller="Category" asp-action="Index" class="kpi-card h-100">
+                <a asp-controller="Category" asp-action="Index" class="kpi-card kpi-card-category h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="kpi-icon kpi-icon-category">
-                            📁
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
                         </div>
-                        <span class="badge bg-success text-white">Active</span>
+                        <span class="badge-status-pill badge-status-active">
+                            <span class="status-dot"></span> Active
+                        </span>
                     </div>
-                    <div class="kpi-label mb-1">Active Categories</div>
+                    <div class="kpi-label">Active Categories</div>
                     <div class="kpi-number counter" data-target="@Model.TotalCategories">@Model.TotalCategories</div>
-                    <div class="mt-3 text-primary small fw-semibold">
-                        Manage categories &rarr;
+                    <div class="kpi-footer text-teal d-flex align-items-center gap-1 mt-3">
+                        <span>Browse categories</span>
+                        <span class="arrow">&rarr;</span>
                     </div>
                 </a>
             </div>
@@ -82,16 +99,32 @@
         <!-- Quick Action Shortcuts -->
         <div class="d-flex flex-wrap gap-2 pt-2">
             <a asp-controller="Product" asp-action="Create" class="btn btn-primary px-3 shadow-sm">
-                <i class="bi bi-plus-circle me-1"></i> + Add Product
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add Product</span>
             </a>
-            <a asp-controller="Category" asp-action="Create" class="btn btn-light px-3 shadow-sm">
-                <i class="bi bi-tag me-1"></i> + Add Category
+            <a asp-controller="Category" asp-action="Create" class="btn btn-action-category px-3 shadow-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add Category</span>
             </a>
-            <a asp-controller="Brand" asp-action="Create" class="btn btn-light px-3 shadow-sm">
-                <i class="bi bi-briefcase me-1"></i> + Add Brand
+            <a asp-controller="Brand" asp-action="Create" class="btn btn-action-brand px-3 shadow-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add Brand</span>
             </a>
-            <a asp-controller="Product" asp-action="Index" class="btn btn-outline-light px-3">
-                <i class="bi bi-search me-1"></i> Search Products
+            <a asp-controller="Product" asp-action="Index" class="btn btn-outline-light px-3 fw-semibold">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Search Catalog</span>
             </a>
         </div>
     </div>
@@ -122,16 +155,6 @@
                     updateCount();
                 }
             });
-
-            // Ensure video autoplays smoothly
-            const video = document.getElementById('dashboardVideoBg');
-            if (video) {
-                video.play().catch(() => {
-                    // Browser autoplay policy handler
-                    video.muted = true;
-                    video.play();
-                });
-            }
         });
     </script>
 }

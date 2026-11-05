@@ -1,4 +1,4 @@
-@model List<TestMVC.Models.Product>
+﻿@model List<TestMVC.Models.Product>
 @{
     ViewData["Title"] = "Products";
     int pageNo = ViewBag.PageNo ?? 1;
@@ -11,11 +11,19 @@
     @Html.AntiForgeryToken()
 </form>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Products</h2>
-        <a asp-action="Create" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Add Product
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="badge px-3 py-1 mb-2" style="background: var(--primary-soft); color: var(--primary-color); border: 1px solid var(--primary-border); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; letter-spacing: 0.05em;">ðŸ“¦ PRODUCT INVENTORY</span>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Products</h2>
+            <p class="text-muted small mb-0">Complete inventory directory, pricing, and live status.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add Product</span>
         </a>
     </div>
 
@@ -40,8 +48,8 @@
             <form id="searchForm" method="get" class="row g-2 align-items-center" onsubmit="event.preventDefault(); triggerSearch(1);">
                 <div class="col-md-6">
                     <div class="input-group">
-                        <span class="input-group-text bg-white text-muted">
-                            <i class="bi bi-search">🔍</i>
+                        <span class="input-group-text text-muted">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </span>
                         <input type="text"
                                id="searchInput"
@@ -50,7 +58,7 @@
                                class="form-control"
                                placeholder="Type to search (e.g. Laptop, Dell, Electronics)..."
                                autocomplete="off" />
-                        <span class="input-group-text bg-white" id="searchSpinner" style="display: none;">
+                        <span class="input-group-text" id="searchSpinner" style="display: none;">
                             <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
                         </span>
                         <button type="button"
@@ -98,18 +106,18 @@
                     <tr>
                         <td class="fw-bold text-center">@p.ProductId</td>
                         <td>@p.Name</td>
-                        <td>@(string.IsNullOrEmpty(p.Brand) ? "-" : p.Brand)</td>
+                        <td>@(!string.IsNullOrEmpty(p.Brand) ? Html.Raw("<span class=\"badge-brand\">" + p.Brand + "</span>") : Html.Raw("-"))</td>
                         <td>
                             @if (!string.IsNullOrEmpty(p.Category))
                             {
-                                <span class="badge bg-info text-dark">@p.Category</span>
+                                <span class="badge-category">@p.Category</span>
                             }
                             else
                             {
                                 <span>-</span>
                             }
                         </td>
-                        <td class="text-end fw-semibold">₹@p.Price.ToString("N2")</td>
+                        <td class="text-end fw-semibold"><span class="badge-price">₹@p.Price.ToString("N2")</span></td>
                         <td>@(string.IsNullOrEmpty(p.Size) ? "-" : p.Size)</td>
                         <td class="text-center">
                             @if (p.IsActive)
@@ -260,9 +268,9 @@
 
             let html = '';
             products.forEach(p => {
-                const brand = p.brand ? escapeHtml(p.brand) : '-';
+                const brand = p.brand ? `<span class="badge-brand">${escapeHtml(p.brand)}</span>` : '-';
                 const categoryBadge = p.category
-                    ? `<span class="badge bg-info text-dark">${escapeHtml(p.category)}</span>`
+                    ? `<span class="badge-category">${escapeHtml(p.category)}</span>`
                     : '<span>-</span>';
                 const size = p.size ? escapeHtml(p.size) : '-';
                 const formattedPrice = Number(p.price).toLocaleString('en-IN', {
@@ -287,7 +295,7 @@
                         <td>${name}</td>
                         <td>${brand}</td>
                         <td>${categoryBadge}</td>
-                        <td class="text-end fw-semibold">₹${formattedPrice}</td>
+                        <td class="text-end fw-semibold"><span class="badge-price">₹${formattedPrice}</span></td>
                         <td>${size}</td>
                         <td class="text-center">${statusBtn}</td>
                         <td>${date}</td>

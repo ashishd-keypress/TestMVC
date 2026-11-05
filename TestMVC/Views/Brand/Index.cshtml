@@ -1,13 +1,21 @@
-@model List<TestMVC.Models.Brand>
+﻿@model List<TestMVC.Models.Brand>
 @{
     ViewData["Title"] = "Brands";
 }
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Brands</h2>
-        <a asp-action="Create" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Add Brand
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="badge px-3 py-1 mb-2" style="background: var(--brand-soft); color: var(--brand-color); border: 1px solid var(--brand-border); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; letter-spacing: 0.05em;">ðŸ·ï¸ BRAND CATALOG</span>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Brands</h2>
+            <p class="text-muted small mb-0">Manage and monitor all brand partners in your catalog.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add Brand</span>
         </a>
     </div>
 
@@ -52,7 +60,7 @@
                     <tr>
                         <td class="fw-bold text-center">@b.BrandId</td>
                         <td>
-                            <span class="badge bg-secondary text-white fs-6">@b.BrandName</span>
+                            <span class="badge-brand">@b.BrandName</span>
                         </td>
                         <td class="text-center">
                             @if (b.IsActive)

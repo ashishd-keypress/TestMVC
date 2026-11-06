@@ -1703,34 +1703,77 @@ body.app-body, body {
   font-weight: 500;
   min-width: 0;
   padding: 0;
+  color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
 }
 
-[data-theme="dark"] .login-input {
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .login-input::placeholder {
-  color: #475569 !important;
-  font-weight: 400;
-}
-
-[data-theme="light"] .login-input {
+/* Light Theme Input Colors (Normal, Focused, and Autofill) */
+[data-theme="light"] .login-input,
+[data-theme="light"] .login-input:focus,
+[data-theme="light"] .login-input-wrap:focus-within .login-input {
   color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #4f46e5 !important;
 }
 
 [data-theme="light"] .login-input::placeholder {
   color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
   font-weight: 400;
 }
 
-/* ==========================================================
-   Universal Browser Autofill Fix
-   Completely eliminates the ugly browser light-blue/gray patch
-   ========================================================== */
-.login-input:-webkit-autofill,
-.login-input:-webkit-autofill:hover,
-.login-input:-webkit-autofill:focus,
-.login-input:-webkit-autofill:active {
+[data-theme="light"] .login-input:-webkit-autofill,
+[data-theme="light"] .login-input:-webkit-autofill:hover,
+[data-theme="light"] .login-input:-webkit-autofill:focus,
+[data-theme="light"] .login-input:-webkit-autofill:active,
+[data-theme="light"] .login-input-wrap .login-input:-webkit-autofill,
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill,
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill:hover,
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill:focus,
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
+  box-shadow: 0 0 0 1000px #f8fafc inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  color: #0f172a !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  transition: background-color 999999s ease-in-out 0s, color 999999s ease-in-out 0s !important;
+}
+
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill,
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  color: #0f172a !important;
+}
+
+/* Dark Theme Input Colors (Normal, Focused, and Autofill) */
+[data-theme="dark"] .login-input,
+[data-theme="dark"] .login-input:focus,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #818cf8 !important;
+}
+
+[data-theme="dark"] .login-input::placeholder {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  font-weight: 400;
+}
+
+[data-theme="dark"] .login-input:-webkit-autofill,
+[data-theme="dark"] .login-input:-webkit-autofill:hover,
+[data-theme="dark"] .login-input:-webkit-autofill:focus,
+[data-theme="dark"] .login-input:-webkit-autofill:active,
+[data-theme="dark"] .login-input-wrap .login-input:-webkit-autofill,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill:hover,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill:focus,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #080d1a inset !important;
   box-shadow: 0 0 0 1000px #080d1a inset !important;
   -webkit-text-fill-color: #f8fafc !important;
@@ -1741,40 +1784,13 @@ body.app-body, body {
   transition: background-color 999999s ease-in-out 0s, color 999999s ease-in-out 0s !important;
 }
 
-[data-theme="dark"] .login-input:-webkit-autofill,
-[data-theme="dark"] .login-input:-webkit-autofill:hover,
-[data-theme="dark"] .login-input:-webkit-autofill:focus,
-[data-theme="dark"] .login-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #080d1a inset !important;
-  box-shadow: 0 0 0 1000px #080d1a inset !important;
-  -webkit-text-fill-color: #f8fafc !important;
-  caret-color: #f8fafc !important;
-}
-
-.login-input-wrap:focus-within .login-input:-webkit-autofill,
-.login-input-wrap:focus-within .login-input:-webkit-autofill:hover,
-.login-input-wrap:focus-within .login-input:-webkit-autofill:focus,
-.login-input-wrap:focus-within .login-input:-webkit-autofill:active {
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill,
+[data-theme="dark"] .login-input-wrap:focus-within .login-input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 1000px #0c1322 inset !important;
   box-shadow: 0 0 0 1000px #0c1322 inset !important;
   -webkit-text-fill-color: #f8fafc !important;
   caret-color: #f8fafc !important;
-}
-
-[data-theme="light"] .login-input:-webkit-autofill,
-[data-theme="light"] .login-input:-webkit-autofill:hover,
-[data-theme="light"] .login-input:-webkit-autofill:focus,
-[data-theme="light"] .login-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
-  box-shadow: 0 0 0 1000px #f8fafc inset !important;
-  -webkit-text-fill-color: #0f172a !important;
-  caret-color: #0f172a !important;
-  color: #0f172a !important;
-}
-
-[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
-  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  color: #f8fafc !important;
 }
 
 /* Global Dark Mode Autofill Immunity */

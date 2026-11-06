@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Threading.Tasks;
 using TestMVC.Interface;
 using TestMVC.Models;
 
@@ -55,6 +54,44 @@ namespace TestMVC.Controllers
             }
 
             ModelState.AddModelError(string.Empty, "Unable to record expense.");
+            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+            return View(expense);
+        }
+
+        // GET: /Expense/Edit/5
+        [HttpGet]
+        public async Task<IActionResult> Edit(long id)
+        {
+            var expense = await _expenseService.GetExpenseById(id);
+            if (expense == null)
+            {
+                TempData["Error"] = "Expense record not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+            return View(expense);
+        }
+
+        // POST: /Expense/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(Expense expense)
+        {
+            if (!ModelState.IsValid)
+            {
+                await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+                return View(expense);
+            }
+
+            var success = await _expenseService.SaveExpense(expense);
+            if (success)
+            {
+                TempData["Success"] = "Expense updated successfully.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            ModelState.AddModelError(string.Empty, "Unable to update expense.");
             await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
             return View(expense);
         }

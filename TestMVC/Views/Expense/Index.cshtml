@@ -2,7 +2,35 @@
 @{
     ViewData["Title"] = "Shop Expenses";
     string? search = ViewBag.Search;
-    decimal totalExpenses = Model.Sum(e => e.Amount);
+    DateTime now = DateTime.Today;
+
+    // 1. Current Month Expenses (Requirement #3)
+    var currentMonthExpenses = Model
+        .Where(e => e.ExpenseDate.Year == now.Year && e.ExpenseDate.Month == now.Month)
+        .ToList();
+    decimal currentMonthTotal = currentMonthExpenses.Sum(e => e.Amount);
+    int currentMonthCount = currentMonthExpenses.Count;
+    string currentMonthName = now.ToString("MMMM yyyy");
+
+    // 2. Monthly Summaries calculated based on Expense Dates (Requirement #2)
+    var monthlySummaries = Model
+        .GroupBy(e => new { e.ExpenseDate.Year, e.ExpenseDate.Month })
+        .Select(g => new {
+            Year = g.Key.Year,
+            Month = g.Key.Month,
+            MonthDate = new DateTime(g.Key.Year, g.Key.Month, 1),
+            MonthName = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy"),
+            Total = g.Sum(x => x.Amount),
+            Count = g.Count(),
+            IsCurrentMonth = (g.Key.Year == now.Year && g.Key.Month == now.Month),
+            IsCompleted = (new DateTime(g.Key.Year, g.Key.Month, 1).AddMonths(1) <= now)
+        })
+        .OrderByDescending(m => m.MonthDate)
+        .ToList();
+
+    var completedMonths = monthlySummaries.Where(m => m.IsCompleted).ToList();
+    decimal completedMonthsTotal = completedMonths.Sum(m => m.Total);
+    decimal allTimeTotal = Model.Sum(e => e.Amount);
 }
 
 <div class="container-fluid px-0">
@@ -18,18 +46,123 @@
 
     <!-- Expense Stats -->
     <div class="row g-3 mb-4">
-        <div class="col-md-6 col-lg-3">
+        <!-- 1. Total Recorded Expenses (Current Month only as requested in item 3) -->
+        <div class="col-md-6 col-lg-4">
             <div class="kpi-card kpi-card-product">
-                <div class="kpi-label">Total Recorded Expenses</div>
-                <div class="kpi-number fs-3">₹@totalExpenses.ToString("N2")</div>
-                <div class="small text-muted mt-2">@Model.Count transactions logged</div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="kpi-label">TOTAL RECORDED EXPENSES</span>
+                    <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(99, 102, 241, 0.18); color: #818cf8; font-size: 0.72rem; font-weight: 600;">
+                        @currentMonthName
+                    </span>
+                </div>
+                <div class="kpi-number fs-3 text-nowrap">₹@currentMonthTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-clock-history me-1"></i>@currentMonthCount transactions logged in @currentMonthName
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Completed Months Summary (as requested in item 2) -->
+        <div class="col-md-6 col-lg-4">
+            <div class="kpi-card kpi-card-category">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="kpi-label">COMPLETED MONTHS EXPENSES</span>
+                    <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(16, 185, 129, 0.18); color: #10b981; font-size: 0.72rem; font-weight: 600;">
+                        <i class="bi bi-check-circle-fill me-1"></i>Completed
+                    </span>
+                </div>
+                <div class="kpi-number fs-3 text-nowrap">₹@completedMonthsTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-archive me-1"></i>Total for @completedMonths.Count completed month(s)
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. All-Time Recorded Expenses -->
+        <div class="col-md-6 col-lg-4">
+            <div class="kpi-card kpi-card-brand">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="kpi-label">ALL-TIME TOTAL EXPENSES</span>
+                    <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(148, 163, 184, 0.18); color: #94a3b8; font-size: 0.72rem; font-weight: 600;">
+                        All History
+                    </span>
+                </div>
+                <div class="kpi-number fs-3 text-nowrap">₹@allTimeTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-receipt me-1"></i>@Model.Count transactions across all history
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Monthly Expense Summary (Completed & Active Months Breakdown - Item 2) -->
+    @if (monthlySummaries.Count > 0)
+    {
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 d-inline-flex" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">
+                        <i class="bi bi-calendar3 fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Monthly Expense Summary</h6>
+                        <small class="text-muted">Calculated totals grouped by completed and active months based on expense dates</small>
+                    </div>
+                </div>
+                <span class="badge bg-secondary-subtle text-secondary">@monthlySummaries.Count Month(s) Recorded</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="padding-left: 1.25rem;">Month & Year</th>
+                                <th>Status</th>
+                                <th class="text-center">Transactions</th>
+                                <th class="text-end" style="padding-right: 1.25rem;">Total Expenses (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var mg in monthlySummaries)
+                            {
+                                <tr>
+                                    <td style="padding-left: 1.25rem;">
+                                        <div class="fw-semibold">
+                                            <i class="bi bi-calendar-check me-2 text-primary"></i>@mg.MonthName
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (mg.IsCompleted)
+                                        {
+                                            <span class="badge rounded-pill bg-success-subtle text-success px-3 py-1.5 fw-semibold">
+                                                <i class="bi bi-check-circle-fill me-1"></i>Month Completed
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
+                                                <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-body-secondary text-body">@mg.Count @(mg.Count == 1 ? "record" : "records")</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger fs-6" style="padding-right: 1.25rem;">
+                                        ₹@mg.Total.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Search Bar -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-body py-3">
             <form method="get" class="row g-2 align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
@@ -45,52 +178,79 @@
         </div>
     </div>
 
-    <!-- Expenses Table -->
-    <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover table-bordered align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th style="width: 70px;" class="text-center">Sr. No.</th>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th>Payment Mode</th>
-                    <th class="text-end">Amount (₹)</th>
-                    <th class="text-center" style="width: 80px;">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (Model.Count == 0)
-                {
+    <!-- Expenses Table (Columns: Date, Description, Category, Amount, Actions - Item 4) -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header py-3 bg-transparent border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold">
+                <i class="bi bi-list-check me-2 text-primary"></i>All Expense Records
+            </h6>
+            <span class="small text-muted">Showing @Model.Count record(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
-                            <em>No shop expenses recorded yet.</em>
-                        </td>
+                        <th style="width: 140px;">Date</th>
+                        <th>Description</th>
+                        <th style="width: 190px;">Category</th>
+                        <th class="text-end" style="width: 150px;">Amount</th>
+                        <th class="text-center" style="width: 170px;">Actions</th>
                     </tr>
-                }
-                else
-                {
-                    int index = 1;
-                    foreach (var e in Model)
+                </thead>
+                <tbody>
+                    @if (Model.Count == 0)
                     {
                         <tr>
-                            <td class="text-center text-muted fw-semibold">@index</td>
-                            <td class="fw-semibold">@e.ExpenseDate.ToString("yyyy-MM-dd")</td>
-                            <td><span class="badge bg-secondary-subtle text-secondary">@e.CategoryName</span></td>
-                            <td>@e.Description</td>
-                            <td><span class="small text-muted">@e.PaymentMethodName</span></td>
-                            <td class="text-end fw-bold text-danger">₹@e.Amount.ToString("N2")</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', @e.ExpenseId, '@Html.Raw(e.Description.Replace("'", "\\'"))', this.closest('tr'))" title="Delete Expense">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
+                                <em>No shop expenses recorded yet.</em>
                             </td>
                         </tr>
-                        index++;
                     }
-                }
-            </tbody>
-        </table>
+                    else
+                    {
+                        foreach (var e in Model)
+                        {
+                            <tr>
+                                <!-- 1. Date -->
+                                <td class="fw-semibold text-nowrap">
+                                    <i class="bi bi-calendar-event me-1 text-muted"></i>
+                                    @e.ExpenseDate.ToString("yyyy-MM-dd")
+                                </td>
+                                <!-- 2. Description -->
+                                <td>
+                                    <div class="fw-semibold">@e.Description</div>
+                                    @if (!string.IsNullOrEmpty(e.PaymentMethodName))
+                                    {
+                                        <small class="text-muted"><i class="bi bi-credit-card me-1"></i>@e.PaymentMethodName</small>
+                                    }
+                                </td>
+                                <!-- 3. Category -->
+                                <td>
+                                    <span class="badge px-2.5 py-1.5" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;">
+                                        @e.CategoryName
+                                    </span>
+                                </td>
+                                <!-- 4. Amount -->
+                                <td class="text-end fw-bold text-danger fs-6 text-nowrap">
+                                    ₹@e.Amount.ToString("N2")
+                                </td>
+                                <!-- 5. Actions (Edit and Delete - Item 1) -->
+                                <td class="text-center">
+                                    <div class="d-inline-flex gap-1">
+                                        <a asp-action="Edit" asp-route-id="@e.ExpenseId" class="btn btn-sm btn-outline-primary" title="Edit Expense">
+                                            <i class="bi bi-pencil-square me-1"></i>Edit
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', @e.ExpenseId, '@Html.Raw(e.Description.Replace("'", "\\'"))', this.closest('tr'))" title="Delete Expense">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>

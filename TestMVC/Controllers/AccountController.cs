@@ -25,28 +25,14 @@ namespace TestMVC.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login(string? returnUrl = null)
         {
-            // If the user is already authenticated:
-            if (User.Identity != null && User.Identity.IsAuthenticated)
+            // When landing on the Login page (e.g., project launch or fresh start),
+            // clear any previous/stale auth session so the user must log in before accessing the Dashboard.
+            if (User.Identity != null && User.Identity.IsAuthenticated && !IsSafeRedirectUrl(returnUrl))
             {
-                // If there's a valid local return URL that is NOT a login/logout loop, redirect there
-                if (IsSafeRedirectUrl(returnUrl))
-                {
-                    return Redirect(returnUrl!);
-                }
-
-                // If returnUrl points back to Login/Logout or an access denied bounce, clear stale/corrupt cookies
-                // to completely eliminate any redirect loop (ERR_TOO_MANY_REDIRECTS)
-                if (!string.IsNullOrEmpty(returnUrl) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
-                {
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    Response.Cookies.Delete("TestMVC.Auth");
-                    Response.Cookies.Delete(".AspNetCore.Cookies");
-                    Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
-                }
-                else
-                {
-                    return RedirectToAction("Index", "Home");
-                }
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                Response.Cookies.Delete("TestMVC.Auth");
+                Response.Cookies.Delete(".AspNetCore.Cookies");
+                Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
             }
 
             ViewBag.ReturnUrl = returnUrl;
@@ -106,8 +92,8 @@ namespace TestMVC.Controllers
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var authProperties = new AuthenticationProperties
             {
-                IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+                IsPersistent = false, // Session cookie: users must log in on project launch/new session
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12)
             };
 
             await HttpContext.SignInAsync(

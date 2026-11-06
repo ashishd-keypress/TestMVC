@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace TestMVC.Models
@@ -10,6 +12,18 @@ namespace TestMVC.Models
         [Display(Name = "Brand Name")]
         [StringLength(100, ErrorMessage = "Brand Name cannot exceed 100 characters.")]
         public string BrandName { get; set; } = string.Empty;
+
+        [Display(Name = "Brand Image")]
+        public string? ImageUrl { get; set; }
+
+        public string? Image
+        {
+            get => ImageUrl;
+            set => ImageUrl = value;
+        }
+
+        [Display(Name = "Upload Brand Image")]
+        public IFormFile? ImageFile { get; set; }
 
         public bool IsActive { get; set; } = true;
         public bool IsDelete { get; set; } = false;

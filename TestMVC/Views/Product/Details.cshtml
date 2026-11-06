@@ -1,0 +1,159 @@
+@model TestMVC.Models.Product
+@{
+    ViewData["Title"] = "Product Details";
+}
+
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-sm border-0 product-details-card">
+                <div class="card-header border-bottom py-3 d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-box-seam text-primary me-2"></i>Product Details
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Products
+                        </a>
+                        <a asp-action="Edit" asp-route-id="@Model.ProductId" class="btn btn-sm btn-primary">
+                            <i class="bi bi-pencil-square me-1"></i>Edit Product
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4 align-items-start">
+                        <!-- Left Column: Product Image -->
+                        <div class="col-md-5 text-center">
+                            <div class="product-details-img-container p-3 rounded-3 text-center d-inline-block w-100 shadow-sm" style="max-width: 320px;">
+                                @if (!string.IsNullOrEmpty(Model.ImageUrl ?? Model.Image))
+                                {
+                                    <img src="@(Model.ImageUrl ?? Model.Image)" 
+                                         alt="@Model.Name" 
+                                         class="img-fluid rounded-3" 
+                                         style="max-height: 280px; width: 100%; object-fit: contain;" 
+                                         onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\'py-5 text-muted\'><i class=\'bi bi-image fs-1 d-block mb-2\'></i><span>No Image Available</span></div>';" />
+                                }
+                                else
+                                {
+                                    <div class="py-5 text-muted">
+                                        <i class="bi bi-image fs-1 d-block mb-2"></i>
+                                        <span>No Image Available</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Product Metadata -->
+                        <div class="col-md-7">
+                            <h2 class="fw-bold mb-2 text-product-title">@Model.Name</h2>
+                            
+                            <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+                                @if (Model.IsActive)
+                                {
+                                    <span class="badge-status-pill badge-status-active"><span class="status-dot"></span> Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-status-pill" style="background: var(--danger-soft); color: var(--danger-color); border: 1px solid var(--danger-border);"><i class="bi bi-x-circle me-1"></i> Inactive</span>
+                                }
+
+                                @if (Model.TrackIMEI)
+                                {
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                        <i class="bi bi-phone me-1"></i>IMEI Tracked
+                                    </span>
+                                }
+
+                                <span class="badge-price fs-5 fw-bold">₹@Model.Price.ToString("N2")</span>
+
+                                @if (Model.MRP.HasValue && Model.MRP.Value > Model.Price)
+                                {
+                                    <span class="text-muted text-decoration-line-through small">MRP: ₹@Model.MRP.Value.ToString("N2")</span>
+                                }
+                            </div>
+
+                            <!-- Live Stock Quantity Badge -->
+                            <div class="p-2 px-3 rounded variant-spec-box d-inline-flex align-items-center gap-2 mb-3">
+                                <span class="small text-muted fw-semibold">Current Stock:</span>
+                                <span class="badge @(Model.StockQuantity > 0 ? "bg-success" : "bg-danger") fs-6">
+                                    @Model.StockQuantity in stock
+                                </span>
+                                @if (Model.TrackIMEI && Model.StockQuantity > 0)
+                                {
+                                    <a asp-controller="Inventory" asp-action="Index" asp-route-productId="@Model.ProductId" class="small text-primary text-decoration-none">
+                                        View IMEIs &rarr;
+                                    </a>
+                                }
+                            </div>
+
+                            <hr class="my-3 details-divider" />
+
+                            <div class="row gy-3">
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Brand</label>
+                                    @if (!string.IsNullOrEmpty(Model.Brand))
+                                    {
+                                        <span class="badge-brand fs-6">@Model.Brand</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="details-value fw-semibold">-</span>
+                                    }
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Category</label>
+                                    @if (!string.IsNullOrEmpty(Model.Category))
+                                    {
+                                        <span class="badge-category fs-6">@Model.Category</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="details-value fw-semibold">-</span>
+                                    }
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">RAM / Memory</label>
+                                    <span class="details-value fw-semibold">@(string.IsNullOrEmpty(Model.RAM) ? "-" : Model.RAM)</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Storage</label>
+                                    <span class="details-value fw-semibold">@(string.IsNullOrEmpty(Model.Storage) ? "-" : Model.Storage)</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Color</label>
+                                    <span class="details-value fw-semibold">@(string.IsNullOrEmpty(Model.Color) ? "-" : Model.Color)</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Warranty</label>
+                                    <span class="details-value fw-semibold">@Model.WarrantyMonths Months</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">SKU</label>
+                                    <span class="details-value fw-semibold font-monospace">@(string.IsNullOrEmpty(Model.SKU) ? "-" : Model.SKU)</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Barcode</label>
+                                    <span class="details-value fw-semibold font-monospace">@(string.IsNullOrEmpty(Model.Barcode) ? "-" : Model.Barcode)</span>
+                                </div>
+
+                                <div class="col-6">
+                                    <label class="details-label small d-block mb-1">Created Date</label>
+                                    <span class="details-value fw-semibold">
+                                        @(Model.CreatedDate.HasValue ? Model.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-")
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

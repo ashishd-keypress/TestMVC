@@ -57,6 +57,16 @@ namespace TestMVC.Repository
                         SELECT 
                             b.BrandId,
                             b.BrandName,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Brand', 'Image') IS NOT NULL AND b.[Image] IS NOT NULL THEN b.[Image]
+                                WHEN COL_LENGTH('dbo.Brand', 'ImageUrl') IS NOT NULL AND b.ImageUrl IS NOT NULL THEN b.ImageUrl
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Brand', 'Image') IS NOT NULL AND b.[Image] IS NOT NULL THEN b.[Image]
+                                WHEN COL_LENGTH('dbo.Brand', 'ImageUrl') IS NOT NULL AND b.ImageUrl IS NOT NULL THEN b.ImageUrl
+                                ELSE NULL 
+                            END) AS ImageUrl,
                             (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) AS IsActive,
                             (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN b.UserId ELSE 1 END) AS UserId,
                             b.CreatedDate
@@ -107,6 +117,16 @@ namespace TestMVC.Repository
                         SELECT 
                             b.BrandId,
                             b.BrandName,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Brand', 'Image') IS NOT NULL AND b.[Image] IS NOT NULL THEN b.[Image]
+                                WHEN COL_LENGTH('dbo.Brand', 'ImageUrl') IS NOT NULL AND b.ImageUrl IS NOT NULL THEN b.ImageUrl
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Brand', 'Image') IS NOT NULL AND b.[Image] IS NOT NULL THEN b.[Image]
+                                WHEN COL_LENGTH('dbo.Brand', 'ImageUrl') IS NOT NULL AND b.ImageUrl IS NOT NULL THEN b.ImageUrl
+                                ELSE NULL 
+                            END) AS ImageUrl,
                             (CASE WHEN COL_LENGTH('dbo.Brand', 'IsActive') IS NOT NULL THEN ISNULL(b.IsActive, 1) ELSE 1 END) AS IsActive,
                             (CASE WHEN COL_LENGTH('dbo.Brand', 'UserId') IS NOT NULL THEN b.UserId ELSE 1 END) AS UserId,
                             b.CreatedDate
@@ -139,6 +159,8 @@ namespace TestMVC.Repository
         {
             string strDBError = string.Empty;
             bool success = false;
+            string trimmedName = (model.BrandName ?? "").Trim();
+            string? imageValue = model.Image ?? model.ImageUrl;
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -146,38 +168,102 @@ namespace TestMVC.Repository
                 {
                     await connection.OpenAsync();
 
-                    if (model.BrandId <= 0)
+                    // Check for existing brand with same name
+                    using (var checkCmd = new SqlCommand(@"
+                        SELECT TOP 1 BrandId, IsDelete 
+                        FROM dbo.Brand 
+                        WHERE LOWER(LTRIM(RTRIM(BrandName))) = LOWER(@BrandName)
+                          AND (@BrandId = 0 OR BrandId != @BrandId);", connection))
                     {
-                        // Insert with UserId
-                        using var cmd = new SqlCommand(@"
-                            INSERT INTO dbo.Brand (BrandName, IsActive, IsDelete, UserId, CreatedDate)
-                            VALUES (@BrandName, @IsActive, 0, @UserId, GETDATE());
-                            SELECT SCOPE_IDENTITY();", connection);
+                        checkCmd.Parameters.AddWithValue("@BrandName", trimmedName);
+                        checkCmd.Parameters.AddWithValue("@BrandId", model.BrandId);
 
-                        cmd.Parameters.AddWithValue("@BrandName", model.BrandName ?? "");
-                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
-                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
+                        int existingId = 0;
+                        bool existingDeleted = false;
+                        using (var reader = await checkCmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                existingId = Convert.ToInt32(reader["BrandId"]);
+                                existingDeleted = Convert.ToBoolean(reader["IsDelete"]);
+                            }
+                        }
 
-                        var result = await cmd.ExecuteScalarAsync();
-                        success = result != null && Convert.ToInt32(result) > 0;
-                    }
-                    else
-                    {
-                        // Update scoped by UserId if specified
-                        using var cmd = new SqlCommand(@"
-                            UPDATE dbo.Brand
-                            SET BrandName = @BrandName,
-                                IsActive = @IsActive
-                            WHERE BrandId = @BrandId
-                              AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
+                        if (model.BrandId <= 0)
+                        {
+                            if (existingId > 0)
+                            {
+                                if (existingDeleted)
+                                {
+                                    // Reactivate previously deleted brand
+                                    using var reactivateCmd = new SqlCommand(@"
+                                        UPDATE dbo.Brand
+                                        SET BrandName = @BrandName,
+                                            [Image] = COALESCE(@Image, [Image]),
+                                            ImageUrl = COALESCE(@Image, ImageUrl),
+                                            IsActive = @IsActive,
+                                            IsDelete = 0,
+                                            UserId = @UserId,
+                                            CreatedDate = GETDATE()
+                                        WHERE BrandId = @ExistingId;", connection);
 
-                        cmd.Parameters.AddWithValue("@BrandId", model.BrandId);
-                        cmd.Parameters.AddWithValue("@BrandName", model.BrandName ?? "");
-                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
-                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+                                    reactivateCmd.Parameters.AddWithValue("@ExistingId", existingId);
+                                    reactivateCmd.Parameters.AddWithValue("@BrandName", trimmedName);
+                                    reactivateCmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                                    reactivateCmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                                    reactivateCmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
 
-                        int rows = await cmd.ExecuteNonQueryAsync();
-                        success = rows > 0;
+                                    int rows = await reactivateCmd.ExecuteNonQueryAsync();
+                                    success = rows > 0;
+                                }
+                                else
+                                {
+                                    return new Tuple<bool, int, string>(false, 0, $"A brand with the name '{trimmedName}' already exists.");
+                                }
+                            }
+                            else
+                            {
+                                // Insert fresh brand
+                                using var cmd = new SqlCommand(@"
+                                    INSERT INTO dbo.Brand (BrandName, [Image], ImageUrl, IsActive, IsDelete, UserId, CreatedDate)
+                                    VALUES (@BrandName, @Image, @Image, @IsActive, 0, @UserId, GETDATE());
+                                    SELECT SCOPE_IDENTITY();", connection);
+
+                                cmd.Parameters.AddWithValue("@BrandName", trimmedName);
+                                cmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                                cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
+
+                                var result = await cmd.ExecuteScalarAsync();
+                                success = result != null && Convert.ToInt32(result) > 0;
+                            }
+                        }
+                        else
+                        {
+                            if (existingId > 0 && !existingDeleted)
+                            {
+                                return new Tuple<bool, int, string>(false, 0, $"A brand with the name '{trimmedName}' already exists.");
+                            }
+
+                            // Update scoped by UserId if specified
+                            using var cmd = new SqlCommand(@"
+                                UPDATE dbo.Brand
+                                SET BrandName = @BrandName,
+                                    [Image] = COALESCE(@Image, [Image]),
+                                    ImageUrl = COALESCE(@Image, ImageUrl),
+                                    IsActive = @IsActive
+                                WHERE BrandId = @BrandId
+                                  AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
+
+                            cmd.Parameters.AddWithValue("@BrandId", model.BrandId);
+                            cmd.Parameters.AddWithValue("@BrandName", trimmedName);
+                            cmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                            cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                            int rows = await cmd.ExecuteNonQueryAsync();
+                            success = rows > 0;
+                        }
                     }
                 }
                 catch (Exception ex)

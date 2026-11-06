@@ -1,0 +1,178 @@
+@model List<TestMVC.Models.DeviceUnit>
+@{
+    ViewData["Title"] = "IMEI & Device Inventory";
+    string? search = ViewBag.Search;
+    byte? selectedStatus = ViewBag.SelectedStatus;
+    int? selectedProductId = ViewBag.SelectedProductId;
+    int inStockCount = ViewBag.InStockCount ?? 0;
+    decimal totalStockValue = ViewBag.TotalStockValue ?? 0;
+    var products = ViewBag.Products as List<TestMVC.Models.ReqRes.GetProductRes> ?? new List<TestMVC.Models.ReqRes.GetProductRes>();
+}
+
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">IMEI & Device Inventory</h2>
+            <p class="text-muted small mb-0">Dual-IMEI tracking, serial numbers, warranty terms, and device lifecycle status.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Purchase" asp-action="Create" class="btn btn-primary shadow-sm">
+                <i class="bi bi-box-arrow-in-down me-1"></i> Stock Inward (Purchase)
+            </a>
+            <a asp-controller="Sales" asp-action="Create" class="btn btn-action-brand shadow-sm">
+                <i class="bi bi-receipt me-1"></i> Sell Phone (POS)
+            </a>
+        </div>
+    </div>
+
+    <!-- Inventory Stat Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="kpi-card kpi-card-product">
+                <div class="kpi-label">Available Devices In Stock</div>
+                <div class="kpi-number">@inStockCount</div>
+                <div class="small text-muted mt-2">Ready for retail sale</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="kpi-card kpi-card-brand">
+                <div class="kpi-label">Total In-Stock Valuation</div>
+                <div class="kpi-number fs-3">₹@totalStockValue.ToString("N2")</div>
+                <div class="small text-muted mt-2">Based on purchase cost</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search IMEI 1, IMEI 2, Serial, Model..." />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">-- All Statuses --</option>
+                        <option value="1" selected="@(selectedStatus == 1)">In Stock (Available)</option>
+                        <option value="2" selected="@(selectedStatus == 2)">Reserved</option>
+                        <option value="3" selected="@(selectedStatus == 3)">Sold</option>
+                        <option value="4" selected="@(selectedStatus == 4)">Returned</option>
+                        <option value="5" selected="@(selectedStatus == 5)">Under Repair</option>
+                        <option value="6" selected="@(selectedStatus == 6)">Damaged</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="productId" class="form-select">
+                        <option value="">-- All Phone Models --</option>
+                        @foreach (var p in products)
+                        {
+                            <option value="@p.ProductId" selected="@(selectedProductId == p.ProductId)">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 70px;" class="text-center">Sr. No.</th>
+                    <th>Device / Model</th>
+                    <th>IMEI 1</th>
+                    <th>IMEI 2 / Serial</th>
+                    <th class="text-end">Cost</th>
+                    <th class="text-end">Selling Price</th>
+                    <th class="text-center" style="width: 130px;">Status</th>
+                    <th>Inward Date</th>
+                    <th class="text-center" style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-phone fs-1 d-block mb-2 text-muted"></i>
+                            <em>No device records found matching filter criteria.</em>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    int index = 1;
+                    foreach (var d in Model)
+                    {
+                        <tr>
+                            <td class="text-center text-muted fw-semibold">@index</td>
+                            <td>
+                                <div class="fw-bold">@d.ProductName</div>
+                                <div class="small text-muted">
+                                    <span class="badge bg-secondary-subtle text-secondary me-1">@d.Brand</span>
+                                    <span>@(d.RAM ?? "-") / @(d.Storage ?? "-") &bull; @(d.Color ?? "-")</span>
+                                </div>
+                            </td>
+                            <td>
+                                <code class="px-2 py-1 rounded bg-light border fw-bold text-dark">@d.IMEI1</code>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(d.IMEI2))
+                                {
+                                    <code class="px-2 py-1 rounded bg-light border small text-muted">@d.IMEI2</code>
+                                }
+                                else if (!string.IsNullOrEmpty(d.SerialNumber))
+                                {
+                                    <span class="small text-muted">SN: @d.SerialNumber</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td class="text-end">₹@((d.CostPrice ?? 0).ToString("N2"))</td>
+                            <td class="text-end fw-bold text-primary">₹@((d.SellingPrice ?? 0).ToString("N2"))</td>
+                            <td class="text-center">
+                                @if (d.CurrentStatus == 1)
+                                {
+                                    <span class="badge-status-pill badge-status-active"><span class="status-dot"></span> In Stock</span>
+                                }
+                                else if (d.CurrentStatus == 3)
+                                {
+                                    <span class="badge bg-primary px-2 py-1">Sold</span>
+                                }
+                                else if (d.CurrentStatus == 4)
+                                {
+                                    <span class="badge bg-warning text-dark px-2 py-1">Returned</span>
+                                }
+                                else if (d.CurrentStatus == 5)
+                                {
+                                    <span class="badge bg-info text-dark px-2 py-1">Under Repair</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger px-2 py-1">@d.StatusName</span>
+                                }
+                            </td>
+                            <td class="small text-muted">@d.CreatedDate.ToString("yyyy-MM-dd hh:mm tt")</td>
+                            <td class="text-center">
+                                <a asp-action="Details" asp-route-id="@d.DeviceUnitId" class="btn btn-sm btn-outline-primary" title="Device Details">
+                                    <i class="bi bi-info-circle"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        index++;
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

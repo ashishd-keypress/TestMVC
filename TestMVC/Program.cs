@@ -19,9 +19,10 @@ namespace TestMVC
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
                 {
+                    options.Cookie.Name = "TestMVC.Auth";
                     options.LoginPath = "/Account/Login";
                     options.LogoutPath = "/Account/Logout";
-                    options.AccessDeniedPath = "/Account/Login";
+                    options.AccessDeniedPath = "/Account/AccessDenied";
                     options.ExpireTimeSpan = TimeSpan.FromDays(7);
                     options.SlidingExpiration = true;
                 });
@@ -33,6 +34,12 @@ namespace TestMVC
             builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
             builder.Services.AddScoped<IBrandRepository, BrandRepository>();
             builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+            builder.Services.AddScoped<IDeviceUnitRepository, DeviceUnitRepository>();
+            builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+            builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+            builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+            builder.Services.AddScoped<ISalesRepository, SalesRepository>();
+            builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 
             // Register Services
             builder.Services.AddScoped<IProductService, ProductService>();
@@ -40,6 +47,12 @@ namespace TestMVC
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IDashboardService, DashboardService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IDeviceUnitService, DeviceUnitService>();
+            builder.Services.AddScoped<ISupplierService, SupplierService>();
+            builder.Services.AddScoped<ICustomerService, CustomerService>();
+            builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+            builder.Services.AddScoped<ISalesService, SalesService>();
+            builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
             var app = builder.Build();
 
@@ -55,9 +68,9 @@ namespace TestMVC
             {
                 app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
+                app.UseHttpsRedirection();
             }
 
-            app.UseHttpsRedirection();
             app.UseRouting();
 
             app.UseAuthentication();
@@ -68,10 +81,10 @@ namespace TestMVC
             // Map API Controllers (Attribute Routing e.g., /api/Auth/login, /api/Product/toggle-status)
             app.MapControllers();
 
-            // Map MVC Default Route
+            // Map MVC Default Route - Opens directly on Login page when app starts
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}")
+                pattern: "{controller=Account}/{action=Login}/{id?}")
                 .WithStaticAssets();
 
             app.Run();

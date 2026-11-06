@@ -15,7 +15,6 @@ namespace Utility
             lock (_lock)
             {
                 if (_initialized) return;
-                
 
                 try
                 {
@@ -153,6 +152,59 @@ namespace Utility
                         IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'UserId')
                         BEGIN
                             EXEC('UPDATE dbo.Product SET UserId = ISNULL(CreatedBY, 1) WHERE UserId IS NULL;');
+                        END;", connection))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 7. Ensure Product.Size allows NULL (Size is not required)
+                    using (var cmd = new SqlCommand(@"
+                        IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Product' AND COLUMN_NAME = 'Size' AND IS_NULLABLE = 'NO')
+                        BEGIN
+                            ALTER TABLE dbo.Product ALTER COLUMN Size VARCHAR(500) NULL;
+                        END;", connection))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 8. Ensure Image and ImageUrl columns exist on Brand, Category, Product tables
+                    using (var cmd = new SqlCommand(@"
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Brand')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Brand') AND name = 'Image')
+                                ALTER TABLE dbo.Brand ADD [Image] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Brand') AND name = 'ImageUrl')
+                                ALTER TABLE dbo.Brand ADD ImageUrl NVARCHAR(500) NULL;
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Category')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Category') AND name = 'Image')
+                                ALTER TABLE dbo.Category ADD [Image] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Category') AND name = 'ImageUrl')
+                                ALTER TABLE dbo.Category ADD ImageUrl NVARCHAR(500) NULL;
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Product')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'Image')
+                                ALTER TABLE dbo.Product ADD [Image] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Product') AND name = 'ImageUrl')
+                                ALTER TABLE dbo.Product ADD ImageUrl NVARCHAR(500) NULL;
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'DeviceUnit')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.DeviceUnit') AND name = 'CostPrice')
+                                ALTER TABLE dbo.DeviceUnit ADD CostPrice DECIMAL(18,2) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.DeviceUnit') AND name = 'Notes')
+                                ALTER TABLE dbo.DeviceUnit ADD Notes NVARCHAR(500) NULL;
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Expense')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Expense') AND name = 'CreatedDate')
+                                ALTER TABLE dbo.Expense ADD CreatedDate DATETIME2 NOT NULL CONSTRAINT DF_Expense_CreatedDate DEFAULT SYSUTCDATETIME();
                         END;", connection))
                     {
                         cmd.ExecuteNonQuery();

@@ -57,6 +57,16 @@ namespace TestMVC.Repository
                         SELECT 
                             c.CategoryId,
                             c.CategoryName,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Category', 'Image') IS NOT NULL AND c.[Image] IS NOT NULL THEN c.[Image]
+                                WHEN COL_LENGTH('dbo.Category', 'ImageUrl') IS NOT NULL AND c.ImageUrl IS NOT NULL THEN c.ImageUrl
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Category', 'Image') IS NOT NULL AND c.[Image] IS NOT NULL THEN c.[Image]
+                                WHEN COL_LENGTH('dbo.Category', 'ImageUrl') IS NOT NULL AND c.ImageUrl IS NOT NULL THEN c.ImageUrl
+                                ELSE NULL 
+                            END) AS ImageUrl,
                             (CASE WHEN COL_LENGTH('dbo.Category', 'IsActive') IS NOT NULL THEN ISNULL(c.IsActive, 1) ELSE 1 END) AS IsActive,
                             (CASE WHEN COL_LENGTH('dbo.Category', 'UserId') IS NOT NULL THEN c.UserId ELSE 1 END) AS UserId,
                             c.CreatedDate
@@ -107,6 +117,16 @@ namespace TestMVC.Repository
                         SELECT 
                             c.CategoryId,
                             c.CategoryName,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Category', 'Image') IS NOT NULL AND c.[Image] IS NOT NULL THEN c.[Image]
+                                WHEN COL_LENGTH('dbo.Category', 'ImageUrl') IS NOT NULL AND c.ImageUrl IS NOT NULL THEN c.ImageUrl
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Category', 'Image') IS NOT NULL AND c.[Image] IS NOT NULL THEN c.[Image]
+                                WHEN COL_LENGTH('dbo.Category', 'ImageUrl') IS NOT NULL AND c.ImageUrl IS NOT NULL THEN c.ImageUrl
+                                ELSE NULL 
+                            END) AS ImageUrl,
                             (CASE WHEN COL_LENGTH('dbo.Category', 'IsActive') IS NOT NULL THEN ISNULL(c.IsActive, 1) ELSE 1 END) AS IsActive,
                             (CASE WHEN COL_LENGTH('dbo.Category', 'UserId') IS NOT NULL THEN c.UserId ELSE 1 END) AS UserId,
                             c.CreatedDate
@@ -139,6 +159,8 @@ namespace TestMVC.Repository
         {
             string strDBError = string.Empty;
             bool success = false;
+            string trimmedName = (model.CategoryName ?? "").Trim();
+            string? imageValue = model.Image ?? model.ImageUrl;
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -146,38 +168,102 @@ namespace TestMVC.Repository
                 {
                     await connection.OpenAsync();
 
-                    if (model.CategoryId <= 0)
+                    // Check for existing category with same name
+                    using (var checkCmd = new SqlCommand(@"
+                        SELECT TOP 1 CategoryId, IsDelete 
+                        FROM dbo.Category 
+                        WHERE LOWER(LTRIM(RTRIM(CategoryName))) = LOWER(@CategoryName)
+                          AND (@CategoryId = 0 OR CategoryId != @CategoryId);", connection))
                     {
-                        // Insert with UserId
-                        using var cmd = new SqlCommand(@"
-                            INSERT INTO dbo.Category (CategoryName, IsActive, IsDelete, UserId, CreatedDate)
-                            VALUES (@CategoryName, @IsActive, 0, @UserId, GETDATE());
-                            SELECT SCOPE_IDENTITY();", connection);
+                        checkCmd.Parameters.AddWithValue("@CategoryName", trimmedName);
+                        checkCmd.Parameters.AddWithValue("@CategoryId", model.CategoryId);
 
-                        cmd.Parameters.AddWithValue("@CategoryName", model.CategoryName ?? "");
-                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
-                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
+                        int existingId = 0;
+                        bool existingDeleted = false;
+                        using (var reader = await checkCmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                existingId = Convert.ToInt32(reader["CategoryId"]);
+                                existingDeleted = Convert.ToBoolean(reader["IsDelete"]);
+                            }
+                        }
 
-                        var result = await cmd.ExecuteScalarAsync();
-                        success = result != null && Convert.ToInt32(result) > 0;
-                    }
-                    else
-                    {
-                        // Update scoped by UserId if specified
-                        using var cmd = new SqlCommand(@"
-                            UPDATE dbo.Category
-                            SET CategoryName = @CategoryName,
-                                IsActive = @IsActive
-                            WHERE CategoryId = @CategoryId
-                              AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
+                        if (model.CategoryId <= 0)
+                        {
+                            if (existingId > 0)
+                            {
+                                if (existingDeleted)
+                                {
+                                    // Reactivate previously deleted category
+                                    using var reactivateCmd = new SqlCommand(@"
+                                        UPDATE dbo.Category
+                                        SET CategoryName = @CategoryName,
+                                            [Image] = COALESCE(@Image, [Image]),
+                                            ImageUrl = COALESCE(@Image, ImageUrl),
+                                            IsActive = @IsActive,
+                                            IsDelete = 0,
+                                            UserId = @UserId,
+                                            CreatedDate = GETDATE()
+                                        WHERE CategoryId = @ExistingId;", connection);
 
-                        cmd.Parameters.AddWithValue("@CategoryId", model.CategoryId);
-                        cmd.Parameters.AddWithValue("@CategoryName", model.CategoryName ?? "");
-                        cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
-                        cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+                                    reactivateCmd.Parameters.AddWithValue("@ExistingId", existingId);
+                                    reactivateCmd.Parameters.AddWithValue("@CategoryName", trimmedName);
+                                    reactivateCmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                                    reactivateCmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                                    reactivateCmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
 
-                        int rows = await cmd.ExecuteNonQueryAsync();
-                        success = rows > 0;
+                                    int rows = await reactivateCmd.ExecuteNonQueryAsync();
+                                    success = rows > 0;
+                                }
+                                else
+                                {
+                                    return new Tuple<bool, int, string>(false, 0, $"A category with the name '{trimmedName}' already exists.");
+                                }
+                            }
+                            else
+                            {
+                                // Insert fresh category
+                                using var cmd = new SqlCommand(@"
+                                    INSERT INTO dbo.Category (CategoryName, [Image], ImageUrl, IsActive, IsDelete, UserId, CreatedDate)
+                                    VALUES (@CategoryName, @Image, @Image, @IsActive, 0, @UserId, GETDATE());
+                                    SELECT SCOPE_IDENTITY();", connection);
+
+                                cmd.Parameters.AddWithValue("@CategoryName", trimmedName);
+                                cmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                                cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
+
+                                var result = await cmd.ExecuteScalarAsync();
+                                success = result != null && Convert.ToInt32(result) > 0;
+                            }
+                        }
+                        else
+                        {
+                            if (existingId > 0 && !existingDeleted)
+                            {
+                                return new Tuple<bool, int, string>(false, 0, $"A category with the name '{trimmedName}' already exists.");
+                            }
+
+                            // Update scoped by UserId if specified
+                            using var cmd = new SqlCommand(@"
+                                UPDATE dbo.Category
+                                SET CategoryName = @CategoryName,
+                                    [Image] = COALESCE(@Image, [Image]),
+                                    ImageUrl = COALESCE(@Image, ImageUrl),
+                                    IsActive = @IsActive
+                                WHERE CategoryId = @CategoryId
+                                  AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
+
+                            cmd.Parameters.AddWithValue("@CategoryId", model.CategoryId);
+                            cmd.Parameters.AddWithValue("@CategoryName", trimmedName);
+                            cmd.Parameters.AddWithValue("@Image", (object?)imageValue ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
+                            cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
+
+                            int rows = await cmd.ExecuteNonQueryAsync();
+                            success = rows > 0;
+                        }
                     }
                 }
                 catch (Exception ex)

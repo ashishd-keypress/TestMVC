@@ -1,4 +1,4 @@
-﻿/* ==========================================================
+/* ==========================================================
    TestMVC - Colorful Premium Executive Theme (Light & Dark)
    ========================================================== */
 
@@ -671,6 +671,11 @@ body.app-body, body {
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.2s ease;
 }
 
+.form-select option {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+
 .form-control:focus, .form-select:focus {
   border-color: var(--primary-color);
   background-color: var(--input-bg);
@@ -1220,7 +1225,44 @@ body.app-body, body {
   border-color: var(--input-border) !important;
 }
 
-/* Alert Boxes in Dual Themes */
+/* Alert Boxes in Dual Themes - Compact & Balanced */
+.alert {
+  padding: 10px 16px !important;
+  border-radius: 12px !important;
+  font-weight: 500;
+  line-height: 1.45;
+  margin-bottom: 1rem;
+}
+
+.alert.alert-dismissible {
+  padding-right: 42px !important;
+}
+
+.alert .validation-summary-errors,
+.alert [data-valmsg-summary="true"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.alert .validation-summary-errors ul,
+.alert [data-valmsg-summary="true"] ul,
+.validation-summary-errors ul {
+  margin: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 18px !important;
+}
+
+.alert .validation-summary-errors ul li,
+.alert [data-valmsg-summary="true"] ul li {
+  margin-bottom: 2px !important;
+  line-height: 1.45;
+}
+
+.alert .validation-summary-errors ul li:last-child,
+.alert [data-valmsg-summary="true"] ul li:last-child {
+  margin-bottom: 0 !important;
+}
+
 .alert-success {
   background-color: var(--success-soft) !important;
   color: var(--success-color) !important;
@@ -1254,4 +1296,979 @@ body.app-body, body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+/* ==========================================================
+   Store Manager Executive Login Page (Light & Dark Theme)
+   ========================================================== */
+.login-fullscreen-layout {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  background-color: var(--bg-main);
+  transition: background-color 0.3s ease;
+}
+
+.login-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 70px 20px 40px;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.3s ease;
+}
+
+/* Ambient Deep Canvas & Background Mesh */
+[data-theme="dark"] .login-wrapper {
+  background-color: #060913;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(99, 102, 241, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 45% at 85% 90%, rgba(59, 130, 246, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 40% at 15% 85%, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+  background-size: 26px 26px, 100% 100%, 100% 100%, 100% 100%;
+}
+
+[data-theme="light"] .login-wrapper {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(99, 102, 241, 0.08) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 45% at 85% 90%, rgba(59, 130, 246, 0.06) 0%, transparent 65%);
+  background-size: 26px 26px, 100% 100%, 100% 100%;
+}
+
+/* Topbar Floating Navigation & Theme Switcher */
+.login-topbar {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.login-app-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .login-app-pill {
+  background: rgba(11, 16, 29, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+[data-theme="light"] .login-app-pill {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.login-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  }
+}
+
+.login-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .login-theme-toggle {
+  background: rgba(11, 16, 29, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .login-theme-toggle:hover {
+  background: rgba(18, 25, 44, 0.95);
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .login-theme-toggle {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .login-theme-toggle:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+/* Login Card Container */
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  border-radius: 20px;
+  padding: 36px 32px;
+  position: relative;
+  z-index: 5;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s ease;
+}
+
+[data-theme="dark"] .login-card {
+  background: rgba(11, 16, 29, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 28px 65px -15px rgba(0, 0, 0, 0.8), 0 0 35px -8px rgba(99, 102, 241, 0.1);
+}
+
+[data-theme="light"] .login-card {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.09), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+/* Brand Header */
+.login-brand-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-brand-icon-wrapper {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.login-brand-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px -2px rgba(99, 102, 241, 0.5);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.login-brand-icon:hover {
+  transform: scale(1.06) rotate(3deg);
+}
+
+.login-brand-title {
+  font-size: 1.58rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .login-brand-title {
+  color: #ffffff;
+}
+
+[data-theme="light"] .login-brand-title {
+  color: #0f172a;
+}
+
+.badge-store-manager {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .badge-store-manager {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+[data-theme="light"] .badge-store-manager {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+
+.login-brand-desc {
+  font-size: 0.84rem;
+  margin-top: 5px;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .login-brand-desc {
+  color: #64748b;
+}
+
+[data-theme="light"] .login-brand-desc {
+  color: #64748b;
+}
+
+/* Alert Boxes (Error & Success) */
+.login-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  margin-bottom: 16px;
+  animation: slideAlertDown 0.3s ease;
+}
+
+@keyframes slideAlertDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-alert-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.login-alert-body {
+  flex-grow: 1;
+  font-weight: 500;
+}
+
+/* Success Alert */
+[data-theme="dark"] .login-alert-success {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  color: #34d399;
+}
+
+[data-theme="light"] .login-alert-success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+/* Error Alert */
+[data-theme="dark"] .login-alert-error {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.22);
+  color: #fb7185;
+}
+
+[data-theme="light"] .login-alert-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+/* Input Fields & Labels */
+.login-input-group {
+  margin-bottom: 16px;
+}
+
+.login-field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .login-field-label {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .login-field-label {
+  color: #334155;
+}
+
+.login-input-wrap {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme="dark"] .login-input-wrap {
+  background: #080d1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .login-input-wrap:focus-within {
+  background: #0c1322 !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22), 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="light"] .login-input-wrap {
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .login-input-wrap:focus-within {
+  background: #ffffff !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+}
+
+.login-input-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+[data-theme="dark"] .login-input-icon {
+  color: #64748b;
+}
+
+[data-theme="dark"] .login-input-wrap:focus-within .login-input-icon {
+  color: #818cf8;
+}
+
+[data-theme="light"] .login-input-icon {
+  color: #64748b;
+}
+
+[data-theme="light"] .login-input-wrap:focus-within .login-input-icon {
+  color: #4f46e5;
+}
+
+.login-input {
+  flex: 1;
+  height: 100%;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 14.5px;
+  font-weight: 500;
+  min-width: 0;
+  padding: 0;
+}
+
+[data-theme="dark"] .login-input {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .login-input::placeholder {
+  color: #475569 !important;
+  font-weight: 400;
+}
+
+[data-theme="light"] .login-input {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .login-input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 400;
+}
+
+/* ==========================================================
+   Universal Browser Autofill Fix
+   Completely eliminates the ugly browser light-blue/gray patch
+   ========================================================== */
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus,
+.login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #080d1a inset !important;
+  box-shadow: 0 0 0 1000px #080d1a inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  color: #f8fafc !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  transition: background-color 999999s ease-in-out 0s, color 999999s ease-in-out 0s !important;
+}
+
+[data-theme="dark"] .login-input:-webkit-autofill,
+[data-theme="dark"] .login-input:-webkit-autofill:hover,
+[data-theme="dark"] .login-input:-webkit-autofill:focus,
+[data-theme="dark"] .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #080d1a inset !important;
+  box-shadow: 0 0 0 1000px #080d1a inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+}
+
+.login-input-wrap:focus-within .login-input:-webkit-autofill,
+.login-input-wrap:focus-within .login-input:-webkit-autofill:hover,
+.login-input-wrap:focus-within .login-input:-webkit-autofill:focus,
+.login-input-wrap:focus-within .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0c1322 inset !important;
+  box-shadow: 0 0 0 1000px #0c1322 inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+}
+
+[data-theme="light"] .login-input:-webkit-autofill,
+[data-theme="light"] .login-input:-webkit-autofill:hover,
+[data-theme="light"] .login-input:-webkit-autofill:focus,
+[data-theme="light"] .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
+  box-shadow: 0 0 0 1000px #f8fafc inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .login-input-wrap:focus-within .login-input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+}
+
+/* Global Dark Mode Autofill Immunity */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover, 
+[data-theme="dark"] input:-webkit-autofill:focus, 
+[data-theme="dark"] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #080d1a inset !important;
+  box-shadow: 0 0 0 1000px #080d1a inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  color: #f8fafc !important;
+  transition: background-color 999999s ease-in-out 0s, color 999999s ease-in-out 0s !important;
+}
+
+.login-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .login-icon-btn {
+  color: #64748b;
+}
+
+[data-theme="dark"] .login-icon-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .login-icon-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .login-icon-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+/* Captcha Addon Pill */
+.login-captcha-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 10px;
+  border-radius: 8px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+[data-theme="dark"] .login-captcha-box {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+}
+
+[data-theme="light"] .login-captcha-box {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+
+.login-captcha-code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+[data-theme="dark"] .login-captcha-code {
+  color: #a5b4fc;
+}
+
+[data-theme="light"] .login-captcha-code {
+  color: #4338ca;
+}
+
+.login-btn-refresh {
+  padding: 4px !important;
+}
+
+[data-theme="dark"] .login-btn-refresh {
+  color: #a5b4fc !important;
+}
+
+[data-theme="light"] .login-btn-refresh {
+  color: #4f46e5 !important;
+}
+
+.login-validation-error {
+  display: block;
+  font-size: 0.8rem;
+  color: #f43f5e;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Sign In Action Button */
+.btn-store-login {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .btn-store-login {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  box-shadow: 0 4px 18px -2px rgba(79, 70, 229, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .btn-store-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -2px rgba(79, 70, 229, 0.6);
+  filter: brightness(1.05);
+}
+
+[data-theme="light"] .btn-store-login {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  box-shadow: 0 4px 16px -2px rgba(79, 70, 229, 0.35);
+}
+
+[data-theme="light"] .btn-store-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -2px rgba(79, 70, 229, 0.5);
+  filter: brightness(1.05);
+}
+
+.btn-store-login:active {
+  transform: translateY(0);
+}
+
+/* Footer Microcopy */
+.login-card-footer {
+  text-align: center;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid;
+}
+
+[data-theme="dark"] .login-card-footer {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .login-card-footer {
+  border-color: #f1f5f9;
+}
+
+.login-footer-badge {
+  font-size: 0.76rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-theme="dark"] .login-footer-badge {
+  color: #475569;
+}
+
+[data-theme="light"] .login-footer-badge {
+  color: #94a3b8;
+}
+/* Required Field Asterisk Indicator */
+.required-star {
+  color: #DC2626 !important;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+
+/* ==========================================================================
+   Image Upload and Table Thumbnails
+   ========================================================================== */
+.table-img-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  vertical-align: middle;
+}
+
+.table-img-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  position: relative;
+}
+
+.table-img-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  font-size: 1.15rem;
+  vertical-align: middle;
+}
+
+.image-upload-card {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: var(--bg-input);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.image-upload-card:hover {
+  border-color: var(--primary-color);
+}
+
+.image-preview-wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border-color);
+}
+
+.image-preview-wrapper img {
+  display: block;
+  max-width: 160px;
+  max-height: 140px;
+  object-fit: cover;
+}
+
+.image-preview-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+}
+
+
+/* ==========================================================
+   Enhanced Dark Mode Overrides & Product Details
+   ========================================================== */
+.text-muted, [data-theme="dark"] .text-muted {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .text-primary {
+  color: var(--primary-hover) !important;
+}
+
+[data-theme="dark"] .bg-body {
+  background-color: var(--surface-card-subtle) !important;
+}
+
+/* Global Bootstrap Dark Mode Overrides for Utility Classes */
+[data-theme="dark"] .bg-light {
+  background-color: var(--surface-card-subtle) !important;
+  color: var(--text-main) !important;
+}
+
+[data-theme="dark"] .input-group-text,
+[data-theme="dark"] .input-group-text.bg-light {
+  background-color: var(--surface-card-subtle) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .form-check-input {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] code.bg-light {
+  background-color: var(--surface-card-subtle) !important;
+  color: var(--text-body) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Product Form & Sub-card Styles (Light & Dark Theme) */
+.variant-spec-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme="dark"] .variant-spec-box {
+  background-color: var(--surface-card-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+
+.form-switch-card {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 72px;
+}
+
+.form-switch-card:hover {
+  border-color: var(--primary-border);
+}
+
+[data-theme="dark"] .form-switch-card {
+  background-color: var(--surface-card-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .form-switch-card .form-check-label {
+  color: var(--text-main) !important;
+}
+
+.image-current-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .image-current-box {
+  background-color: var(--surface-card-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Product Details Styles */
+.product-details-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-color);
+}
+
+.text-product-title {
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.product-details-img-container {
+  background: var(--surface-card-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.details-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.details-value {
+  color: var(--text-main);
+  font-size: 0.96rem;
+}
+
+.details-divider {
+  border-color: var(--border-color);
+  opacity: 0.35;
+}
+
+/* ==========================================================
+   Custom Animated Confirmation & Success Modals
+   ========================================================== */
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.app-modal-backdrop.show {
+  opacity: 1;
+}
+
+.app-modal-dialog {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-color);
+  width: 100%;
+  max-width: 440px;
+  padding: 1.8rem;
+  text-align: center;
+  transform: scale(0.92);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--text-main);
+}
+
+.app-modal-backdrop.show .app-modal-dialog {
+  transform: scale(1);
+}
+
+.app-modal-icon-illustration {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem auto;
+  animation: trashBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.app-modal-icon-illustration img {
+  max-width: 130px;
+  height: auto;
+  display: block;
+}
+
+@keyframes trashBounce {
+  0% { transform: scale(0.6) translateY(-10px); opacity: 0; }
+  60% { transform: scale(1.08) translateY(2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.app-modal-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  font-size: 1.85rem;
+}
+
+.app-modal-icon-danger {
+  background: var(--danger-soft);
+  color: var(--danger-color);
+  border: 1px solid var(--danger-border);
+}
+
+.app-modal-icon-success {
+  background: var(--success-soft);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+.app-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.app-modal-body {
+  font-size: 0.92rem;
+  color: var(--text-body);
+  margin-bottom: 1.6rem;
+  line-height: 1.55;
+}
+
+.app-modal-footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.app-modal-footer .btn {
+  min-width: 110px;
+  padding: 10px 18px;
+  font-weight: 600;
+  border-radius: 10px;
 }

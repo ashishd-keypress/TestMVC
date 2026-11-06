@@ -1,21 +1,30 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - TestMVC</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="48x48" href="~/favicon-48x48.png?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png?v=2" />
+    <link rel="shortcut icon" href="~/favicon.ico?v=2" />
     <script type="importmap"></script>
-    <!-- Prevent Theme Flash -->
+    <!-- Prevent Theme Flash: Honors saved theme (defaulting to dark) -->
     <script>
         (function () {
-            const theme = localStorage.getItem('theme') || 'light';
+            const theme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/TestMVC.styles.css" asp-append-version="true" />
 </head>
@@ -69,7 +78,76 @@
                                 <span class="nav-label">DashBoard</span>
                             </a>
                         </li>
-                        <!-- 2. Brands -->
+                        <!-- 2. POS / Billing -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Sales" asp-action="Create">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                                        <line x1="6" y1="15" x2="10" y2="15"></line>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">POS / Billing</span>
+                            </a>
+                        </li>
+                        <!-- 3. Sales Invoices -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Sales" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">Invoices</span>
+                            </a>
+                        </li>
+                        <!-- 4. IMEI Inventory -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Inventory" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">IMEI Inventory</span>
+                            </a>
+                        </li>
+                        <!-- 5. Purchases -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Purchase" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">Purchases (Stock In)</span>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="sidebar-section-heading mt-3">CATALOG</div>
+                    <ul class="sidebar-nav">
+                        <!-- Products -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Product" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">Products</span>
+                            </a>
+                        </li>
+                        <!-- Brands -->
                         <li class="sidebar-nav-item">
                             <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Brand" asp-action="Index">
                                 <span class="nav-icon">
@@ -81,7 +159,7 @@
                                 <span class="nav-label">Brands</span>
                             </a>
                         </li>
-                        <!-- 3. Categories -->
+                        <!-- Categories -->
                         <li class="sidebar-nav-item">
                             <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Category" asp-action="Index">
                                 <span class="nav-icon">
@@ -92,17 +170,48 @@
                                 <span class="nav-label">Categories</span>
                             </a>
                         </li>
-                        <!-- 4. Products -->
+                    </ul>
+
+                    <div class="sidebar-section-heading mt-3">PARTNERS & FINANCE</div>
+                    <ul class="sidebar-nav">
+                        <!-- Customers -->
                         <li class="sidebar-nav-item">
-                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Product" asp-action="Index">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Customer" asp-action="Index">
                                 <span class="nav-icon">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                     </svg>
                                 </span>
-                                <span class="nav-label">Products</span>
+                                <span class="nav-label">Customers</span>
+                            </a>
+                        </li>
+                        <!-- Suppliers -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Supplier" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="1" y="3" width="15" height="13"></rect>
+                                        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                                        <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                        <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">Suppliers</span>
+                            </a>
+                        </li>
+                        <!-- Expenses -->
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link spa-link" asp-area="" asp-controller="Expense" asp-action="Index">
+                                <span class="nav-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                    </svg>
+                                </span>
+                                <span class="nav-label">Expenses</span>
                             </a>
                         </li>
                     </ul>
@@ -166,13 +275,28 @@
             <!-- Right Content Area -->
             <div class="app-main-area">
                 <!-- Mobile Toggle Header -->
-                <header class="mobile-topbar d-md-none">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="mobileSidebarToggle">
-                        â˜° Menu
+                                <header class="mobile-topbar d-md-none">
+                    <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="mobileSidebarToggle">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                        <span>Menu</span>
                     </button>
                     <span class="fw-bold">TestMVC</span>
                     <button type="button" class="theme-toggle-btn btn btn-sm btn-outline-secondary p-1" title="Toggle Theme">
-                        ðŸŒ“
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
                     </button>
                 </header>
 

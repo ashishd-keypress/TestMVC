@@ -1,35 +1,43 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TestMVC.Interface;
 using TestMVC.Models;
 using TestMVC.Models.ReqRes;
+using Utility;
 
 namespace TestMVC.Controllers
 {
     [Authorize]
     public class ProductController : Controller
     {
-        private const int PageSize = 10;
         private readonly IProductService _productService;
-        private readonly IBrandService _brandService;
         private readonly ICategoryService _categoryService;
+        private readonly IBrandService _brandService;
+        private readonly IWebHostEnvironment _env;
+        private const int PageSize = 10;
 
         public ProductController(
             IProductService productService,
+            ICategoryService categoryService,
             IBrandService brandService,
-            ICategoryService categoryService)
+            IWebHostEnvironment env)
         {
             _productService = productService;
-            _brandService = brandService;
             _categoryService = categoryService;
+            _brandService = brandService;
+            _env = env;
         }
 
-        // GET: /Product?search=abc&pageNo=1
+        // GET: /Product
+        [HttpGet]
         public async Task<IActionResult> Index(string? search, int pageNo = 1)
         {
             if (pageNo < 1) pageNo = 1;
@@ -49,8 +57,20 @@ namespace TestMVC.Controllers
             {
                 ProductId = p.ProductId,
                 Name = p.Name,
+                Image = p.Image ?? p.ImageUrl,
+                ImageUrl = p.Image ?? p.ImageUrl,
                 Price = p.Price,
+                MRP = p.MRP,
+                SellingPrice = p.SellingPrice,
                 Size = p.Size,
+                RAM = p.RAM,
+                Storage = p.Storage,
+                Color = p.Color,
+                SKU = p.SKU,
+                Barcode = p.Barcode,
+                WarrantyMonths = p.WarrantyMonths,
+                TrackIMEI = p.TrackIMEI,
+                StockQuantity = p.StockQuantity,
                 BrandId = p.BrandId ?? 0,
                 Brand = p.Brand,
                 CategoryId = p.CategoryId ?? 0,
@@ -91,17 +111,76 @@ namespace TestMVC.Controllers
                 {
                     productId = p.ProductId,
                     name = p.Name,
+                    image = p.Image ?? p.ImageUrl,
+                    imageUrl = p.Image ?? p.ImageUrl,
                     brand = p.Brand,
                     category = p.Category,
                     price = p.Price,
+                    mrp = p.MRP,
+                    sellingPrice = p.SellingPrice,
                     size = p.Size,
+                    ram = p.RAM,
+                    storage = p.Storage,
+                    color = p.Color,
+                    sku = p.SKU,
+                    barcode = p.Barcode,
+                    warrantyMonths = p.WarrantyMonths,
+                    trackImei = p.TrackIMEI,
+                    stockQuantity = p.StockQuantity,
                     isActive = p.IsActive,
                     userId = p.UserId,
-                    createdDate = p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-"
+                    createdDate = p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-"
                 }),
                 pageNo = pageNo,
                 hasNext = (pageNo * PageSize) < totalRecords
             });
+        }
+
+        // GET: /Product/Details/5
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest();
+            }
+
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (res, _, _) = await _productService.GetProductById(new GetProductByIdReq { ProductId = id, UserId = currentUserId });
+            if (res == null)
+            {
+                TempData["Error"] = "Product not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var product = new Product
+            {
+                ProductId = res.ProductId,
+                Name = res.Name,
+                Image = res.Image ?? res.ImageUrl,
+                ImageUrl = res.Image ?? res.ImageUrl,
+                BrandId = res.BrandId ?? 0,
+                Brand = res.Brand,
+                CategoryId = res.CategoryId ?? 0,
+                Category = res.Category,
+                Price = res.Price,
+                MRP = res.MRP,
+                SellingPrice = res.SellingPrice,
+                Size = res.Size,
+                RAM = res.RAM,
+                Storage = res.Storage,
+                Color = res.Color,
+                SKU = res.SKU,
+                Barcode = res.Barcode,
+                WarrantyMonths = res.WarrantyMonths,
+                TrackIMEI = res.TrackIMEI,
+                StockQuantity = res.StockQuantity,
+                IsActive = res.IsActive,
+                UserId = res.UserId,
+                CreatedDate = res.CreatedDate
+            };
+
+            return View(product);
         }
 
         // POST: /Product/ToggleStatus/5
@@ -147,7 +226,7 @@ namespace TestMVC.Controllers
         public async Task<IActionResult> Create()
         {
             await LoadDropdownsAsync();
-            return View(new Product());
+            return View(new Product { WarrantyMonths = 12, TrackIMEI = true });
         }
 
         // POST: /Product/Create
@@ -155,10 +234,23 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Product product)
         {
+            // Mandatory Image Upload on Create
+            var (imgValid, imgErr) = FileHelper.ValidateImage(product.ImageFile, isRequired: true);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdownsAsync(product.CategoryId, product.BrandId);
                 return View(product);
+            }
+
+            string? savedImageUrl = null;
+            if (product.ImageFile != null && product.ImageFile.Length > 0)
+            {
+                savedImageUrl = await FileHelper.SaveImageAsync(product.ImageFile, _env, "products");
             }
 
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -166,10 +258,21 @@ namespace TestMVC.Controllers
             {
                 ProductId = 0,
                 Name = product.Name,
+                Image = savedImageUrl,
+                ImageUrl = savedImageUrl,
                 BrandId = product.BrandId,
                 CategoryId = product.CategoryId,
                 Price = product.Price,
+                MRP = product.MRP,
+                SellingPrice = product.SellingPrice ?? product.Price,
                 Size = product.Size,
+                RAM = product.RAM,
+                Storage = product.Storage,
+                Color = product.Color,
+                SKU = product.SKU,
+                Barcode = product.Barcode,
+                WarrantyMonths = product.WarrantyMonths > 0 ? product.WarrantyMonths : 12,
+                TrackIMEI = product.TrackIMEI,
                 IsActive = product.IsActive,
                 UserId = currentUserId
             };
@@ -183,7 +286,12 @@ namespace TestMVC.Controllers
             }
             else
             {
-                ModelState.AddModelError(string.Empty, "Failed to save product: " + err);
+                if (!string.IsNullOrEmpty(savedImageUrl))
+                {
+                    FileHelper.DeleteImage(savedImageUrl, _env);
+                }
+
+                ModelState.AddModelError(string.Empty, "Unable to save product. Please check the entered details and try again.");
                 await LoadDropdownsAsync(product.CategoryId, product.BrandId);
                 return View(product);
             }
@@ -210,12 +318,24 @@ namespace TestMVC.Controllers
             {
                 ProductId = res.ProductId,
                 Name = res.Name,
+                Image = res.Image ?? res.ImageUrl,
+                ImageUrl = res.Image ?? res.ImageUrl,
                 BrandId = res.BrandId ?? 0,
                 Brand = res.Brand,
                 CategoryId = res.CategoryId ?? 0,
                 Category = res.Category,
                 Price = res.Price,
+                MRP = res.MRP,
+                SellingPrice = res.SellingPrice,
                 Size = res.Size,
+                RAM = res.RAM,
+                Storage = res.Storage,
+                Color = res.Color,
+                SKU = res.SKU,
+                Barcode = res.Barcode,
+                WarrantyMonths = res.WarrantyMonths,
+                TrackIMEI = res.TrackIMEI,
+                StockQuantity = res.StockQuantity,
                 IsActive = res.IsActive,
                 UserId = res.UserId,
                 CreatedDate = res.CreatedDate
@@ -243,24 +363,50 @@ namespace TestMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            product.BrandId = existing.BrandId ?? 0;
-            product.CategoryId = existing.CategoryId ?? 0;
+            // Image validation: Must either have an existing image or a newly uploaded image
+            string? existingImg = existing.Image ?? existing.ImageUrl;
+            bool hasExisting = !string.IsNullOrEmpty(existingImg);
+            var (imgValid, imgErr) = FileHelper.ValidateImage(product.ImageFile, isRequired: !hasExisting);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdownsAsync(existing.CategoryId, existing.BrandId);
+                product.Image = existingImg;
+                product.ImageUrl = existingImg;
+                await LoadDropdownsAsync(product.CategoryId, product.BrandId);
                 return View(product);
+            }
+
+            string finalImageUrl = existingImg ?? string.Empty;
+            if (product.ImageFile != null && product.ImageFile.Length > 0)
+            {
+                finalImageUrl = await FileHelper.SaveImageAsync(product.ImageFile, _env, "products");
+                FileHelper.DeleteImage(existingImg, _env);
             }
 
             var updateReq = new SaveProductReq
             {
                 ProductId = product.ProductId,
                 Name = product.Name,
+                Image = finalImageUrl,
+                ImageUrl = finalImageUrl,
+                BrandId = product.BrandId > 0 ? product.BrandId : existing.BrandId,
+                CategoryId = product.CategoryId > 0 ? product.CategoryId : existing.CategoryId,
                 Price = product.Price,
+                MRP = product.MRP,
+                SellingPrice = product.SellingPrice ?? product.Price,
                 Size = product.Size,
+                RAM = product.RAM,
+                Storage = product.Storage,
+                Color = product.Color,
+                SKU = product.SKU,
+                Barcode = product.Barcode,
+                WarrantyMonths = product.WarrantyMonths > 0 ? product.WarrantyMonths : 12,
+                TrackIMEI = product.TrackIMEI,
                 IsActive = product.IsActive,
-                BrandId = existing.BrandId,
-                CategoryId = existing.CategoryId,
                 UserId = currentUserId
             };
 
@@ -273,8 +419,10 @@ namespace TestMVC.Controllers
             }
             else
             {
-                ModelState.AddModelError(string.Empty, "Failed to update product: " + err);
-                await LoadDropdownsAsync(existing.CategoryId, existing.BrandId);
+                ModelState.AddModelError(string.Empty, "Unable to update product. Please check the entered details and try again.");
+                product.Image = existingImg;
+                product.ImageUrl = existingImg;
+                await LoadDropdownsAsync(product.CategoryId, product.BrandId);
                 return View(product);
             }
         }
@@ -293,11 +441,15 @@ namespace TestMVC.Controllers
             }
 
             int? currentUserId = Utility.Helper.GetUserId(User);
-            var (res, _, err) = await _productService.DeleteProduct(new DeleteReq { Id = id, UserId = currentUserId });
+            var (res, _, _) = await _productService.DeleteProduct(new DeleteReq { Id = id, UserId = currentUserId });
 
             if (IsAjaxRequest())
             {
-                return Json(new { success = res.Success, message = res.Message });
+                return Json(new
+                {
+                    success = res.Success,
+                    message = res.Message
+                });
             }
 
             if (res.Success)
@@ -312,41 +464,21 @@ namespace TestMVC.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        private async Task LoadDropdownsAsync(int? selectedCategory = null, int? selectedBrand = null)
+        {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+
+            var (catsRes, _, _) = await _categoryService.GetCategory(new GetCategoryReq { UserId = currentUserId, IsActive = true, PageSize = 1000 });
+            var (brandsRes, _, _) = await _brandService.GetBrand(new GetBrandReq { UserId = currentUserId, IsActive = true, PageSize = 1000 });
+
+            ViewBag.Categories = new SelectList(catsRes, "CategoryId", "CategoryName", selectedCategory);
+            ViewBag.Brands = new SelectList(brandsRes, "BrandId", "BrandName", selectedBrand);
+        }
+
         private bool IsAjaxRequest()
         {
             return Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                    Request.Headers.Accept.ToString().Contains("application/json");
-        }
-
-        private async Task LoadDropdownsAsync(int? selectedCategoryId = null, int? selectedBrandId = null)
-        {
-            int? currentUserId = Utility.Helper.GetUserId(User);
-
-            // Only load ACTIVE brands and categories (IsActive = true) created by current user for product dropdowns
-            var (categoriesRes, _, _) = await _categoryService.GetCategory(new GetCategoryReq { PageSize = 500, IsActive = true, UserId = currentUserId });
-            var (brandsRes, _, _) = await _brandService.GetBrand(new GetBrandReq { PageSize = 500, IsActive = true, UserId = currentUserId });
-
-            // If editing an existing product whose category/brand was previously assigned, keep it in the dropdown list
-            if (selectedCategoryId.HasValue && selectedCategoryId.Value > 0 && !categoriesRes.Any(c => c.CategoryId == selectedCategoryId.Value))
-            {
-                var (selectedCat, _, _) = await _categoryService.GetCategoryById(new GetCategoryByIdReq { CategoryId = selectedCategoryId.Value, UserId = currentUserId });
-                if (selectedCat != null)
-                {
-                    categoriesRes.Add(selectedCat);
-                }
-            }
-
-            if (selectedBrandId.HasValue && selectedBrandId.Value > 0 && !brandsRes.Any(b => b.BrandId == selectedBrandId.Value))
-            {
-                var (selectedB, _, _) = await _brandService.GetBrandById(new GetBrandByIdReq { BrandId = selectedBrandId.Value, UserId = currentUserId });
-                if (selectedB != null)
-                {
-                    brandsRes.Add(selectedB);
-                }
-            }
-
-            ViewBag.Categories = new SelectList(categoriesRes, "CategoryId", "CategoryName", selectedCategoryId);
-            ViewBag.Brands = new SelectList(brandsRes, "BrandId", "BrandName", selectedBrandId);
         }
     }
 }

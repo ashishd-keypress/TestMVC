@@ -1,4 +1,4 @@
-﻿@model List<TestMVC.Models.Product>
+@model List<TestMVC.Models.Product>
 @{
     ViewData["Title"] = "Products";
     int pageNo = ViewBag.PageNo ?? 1;
@@ -12,19 +12,19 @@
 </form>
 
 <div class="container-fluid px-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <span class="badge px-3 py-1 mb-2" style="background: var(--primary-soft); color: var(--primary-color); border: 1px solid var(--primary-border); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; letter-spacing: 0.05em;">ðŸ“¦ PRODUCT INVENTORY</span>
-            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Products</h2>
-            <p class="text-muted small mb-0">Complete inventory directory, pricing, and live status.</p>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Products & Mobile Catalog</h2>
+            <p class="text-muted small mb-0">Complete mobile catalog, specifications, live stock, and pricing directory.</p>
         </div>
-        <a asp-action="Create" class="btn btn-primary shadow-sm">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Product</span>
-        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="Create" class="btn btn-primary shadow-sm">
+                <i class="bi bi-plus-lg me-1"></i> Add Product
+            </a>
+            <a asp-controller="Purchase" asp-action="Create" class="btn btn-action-brand shadow-sm">
+                <i class="bi bi-box-arrow-in-down me-1"></i> Purchase Stock In
+            </a>
+        </div>
     </div>
 
     @if (TempData["Success"] != null)
@@ -49,14 +49,14 @@
                 <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text text-muted">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <i class="bi bi-search"></i>
                         </span>
                         <input type="text"
                                id="searchInput"
                                name="search"
                                value="@search"
                                class="form-control"
-                               placeholder="Type to search (e.g. Laptop, Dell, Electronics)..."
+                               placeholder="Type to search (e.g. iPhone, Samsung, 256GB, Black)..."
                                autocomplete="off" />
                         <span class="input-group-text" id="searchSpinner" style="display: none;">
                             <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
@@ -81,31 +81,56 @@
         <table class="table table-hover table-bordered align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th scope="col" style="width: 60px;">ID</th>
-                    <th scope="col">Product Name</th>
+                    <th scope="col" style="width: 60px;" class="text-center">Sr. No.</th>
+                    <th scope="col" style="width: 75px;" class="text-center">Image</th>
+                    <th scope="col">Product / Model Name</th>
                     <th scope="col">Brand</th>
                     <th scope="col">Category</th>
-                    <th scope="col" class="text-end">Price</th>
-                    <th scope="col">Size</th>
+                    <th scope="col" class="text-end">Selling Price</th>
+                    <th scope="col" class="text-center">Stock</th>
                     <th scope="col" class="text-center" style="width: 100px;">Status</th>
                     <th scope="col">Created Date</th>
-                    <th scope="col" style="width: 170px;" class="text-center">Actions</th>
+                    <th scope="col" style="width: 185px;" class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody id="productTableBody">
                 @if (Model.Count == 0)
                 {
                     <tr id="noRecordsRow">
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <em>No products found.</em>
                         </td>
                     </tr>
                 }
+                @{ int serialNo = (pageNo - 1) * 10 + 1; }
                 @foreach (var p in Model)
                 {
                     <tr>
-                        <td class="fw-bold text-center">@p.ProductId</td>
-                        <td>@p.Name</td>
+                        <td class="fw-bold text-center">@(serialNo++)</td>
+                        <td class="text-center">
+                            @if (!string.IsNullOrEmpty(p.Image ?? p.ImageUrl))
+                            {
+                                <a asp-action="Details" asp-route-id="@p.ProductId" title="View Details">
+                                    <img src="@(p.Image ?? p.ImageUrl)" alt="@p.Name" class="table-img-thumb" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\'table-img-placeholder\'><i class=\'bi bi-image\'></i></div>';" />
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="table-img-placeholder" title="No Image">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@p.ProductId" class="text-decoration-none fw-semibold">@p.Name</a>
+                            @if (!string.IsNullOrEmpty(p.RAM) || !string.IsNullOrEmpty(p.Storage))
+                            {
+                                <div class="small text-muted">
+                                    <span>@p.RAM / @p.Storage</span>
+                                    @if (!string.IsNullOrEmpty(p.Color)) { <span>&bull; @p.Color</span> }
+                                </div>
+                            }
+                        </td>
                         <td>@(!string.IsNullOrEmpty(p.Brand) ? Html.Raw("<span class=\"badge-brand\">" + p.Brand + "</span>") : Html.Raw("-"))</td>
                         <td>
                             @if (!string.IsNullOrEmpty(p.Category))
@@ -117,8 +142,33 @@
                                 <span>-</span>
                             }
                         </td>
-                        <td class="text-end fw-semibold"><span class="badge-price">₹@p.Price.ToString("N2")</span></td>
-                        <td>@(string.IsNullOrEmpty(p.Size) ? "-" : p.Size)</td>
+                        <td class="text-end fw-semibold">
+                            <span class="badge-price">₹@p.Price.ToString("N2")</span>
+                            @if (p.MRP.HasValue && p.MRP.Value > p.Price)
+                            {
+                                <div class="small text-muted text-decoration-line-through">₹@p.MRP.Value.ToString("N2")</div>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (p.StockQuantity > 0)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    @p.StockQuantity in stock
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    0 in stock
+                                </span>
+                            }
+                            @if (p.TrackIMEI)
+                            {
+                                <div class="mt-1">
+                                    <span class="badge bg-primary-subtle text-primary small">IMEI Tracked</span>
+                                </div>
+                            }
+                        </td>
                         <td class="text-center">
                             @if (p.IsActive)
                             {
@@ -134,10 +184,13 @@
                             }
                         </td>
                         <td>
-                            @(p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")
+                            @(p.CreatedDate.HasValue ? p.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-")
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-2 justify-content-center">
+                                <a asp-action="Details" asp-route-id="@p.ProductId" class="btn btn-sm btn-outline-info" title="View Details">
+                                    View
+                                </a>
                                 <a asp-action="Edit" asp-route-id="@p.ProductId" class="btn btn-sm btn-outline-primary" title="Edit">
                                     Edit
                                 </a>
@@ -161,7 +214,9 @@
                 </button>
             }
         </div>
-        <span id="pageIndicator" class="badge bg-secondary p-2">Page @pageNo</span>
+        <div id="pageInfo" class="text-muted small">
+            Page <span id="currentPageSpan">@pageNo</span>
+        </div>
         <div id="nextPageBtn">
             @if (hasNext)
             {
@@ -178,87 +233,75 @@
         let searchTimeout = null;
         let currentPage = @pageNo;
 
-        const searchInput = document.getElementById('searchInput');
-        const searchSpinner = document.getElementById('searchSpinner');
-        const btnClearSearch = document.getElementById('btnClearSearch');
-        const tableBody = document.getElementById('productTableBody');
-        const paginationContainer = document.getElementById('paginationContainer');
-        const prevPageBtn = document.getElementById('prevPageBtn');
-        const nextPageBtn = document.getElementById('nextPageBtn');
-        const pageIndicator = document.getElementById('pageIndicator');
-
-        // Real-time live search on user typing
-        if (searchInput) {
-            searchInput.addEventListener('input', function () {
-                const query = this.value.trim();
-                if (btnClearSearch) btnClearSearch.style.display = query.length > 0 ? 'inline-block' : 'none';
-
-                if (searchSpinner) searchSpinner.style.display = 'inline-block';
-
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-
-                searchTimeout = setTimeout(() => {
-                    triggerSearch(1);
-                }, 300);
-            });
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
-        // Clear button handler
-        if (btnClearSearch) {
-            btnClearSearch.addEventListener('click', function () {
-                if (searchInput) {
-                    searchInput.value = '';
-                    btnClearSearch.style.display = 'none';
-                    searchInput.focus();
-                }
+        document.getElementById('searchInput').addEventListener('input', function (e) {
+            const val = e.target.value.trim();
+            const btnClear = document.getElementById('btnClearSearch');
+            btnClear.style.display = val.length > 0 ? 'inline-block' : 'none';
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
                 triggerSearch(1);
-            });
-        }
+            }, 300);
+        });
 
-        // Fetch products matching the search query via AJAX API
-        function triggerSearch(pageNo) {
-            currentPage = pageNo || 1;
-            const query = searchInput ? searchInput.value.trim() : '';
-            if (searchSpinner) searchSpinner.style.display = 'inline-block';
+        document.getElementById('btnClearSearch').addEventListener('click', function () {
+            const input = document.getElementById('searchInput');
+            input.value = '';
+            this.style.display = 'none';
+            triggerSearch(1);
+        });
 
-            const url = `/api/Product/search?search=${encodeURIComponent(query)}&pageNo=${currentPage}`;
+        async function triggerSearch(targetPage) {
+            currentPage = targetPage;
+            const query = document.getElementById('searchInput').value.trim();
+            const spinner = document.getElementById('searchSpinner');
 
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(result => {
-                    if (searchSpinner) searchSpinner.style.display = 'none';
-                    if (result.success) {
-                        renderProductTable(result.data, query);
-                        renderPagination(result.pageNo, result.hasNext);
-                        
-                        const newUrl = query ? `/Product?search=${encodeURIComponent(query)}&pageNo=${currentPage}` : `/Product?pageNo=${currentPage}`;
-                        window.history.replaceState({ path: newUrl }, '', newUrl);
-                    }
-                })
-                .catch(error => {
-                    if (searchSpinner) searchSpinner.style.display = 'none';
-                    console.error('Error fetching search results:', error);
+            try {
+                if (spinner) spinner.style.display = 'inline-block';
+
+                const url = `/Product/SearchApi?search=${encodeURIComponent(query)}&pageNo=${targetPage}`;
+                const response = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
+
+                if (!response.ok) throw new Error('Search failed');
+
+                const result = await response.json();
+                if (result.success) {
+                    renderProducts(result.data, query);
+                    renderPagination(result.pageNo, result.hasNext);
+
+                    const newUrl = query
+                        ? `/Product?search=${encodeURIComponent(query)}&pageNo=${targetPage}`
+                        : `/Product?pageNo=${targetPage}`;
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                }
+            } catch (err) {
+                console.error('Error fetching search results:', err);
+            } finally {
+                if (spinner) spinner.style.display = 'none';
+            }
         }
 
-        // Render table rows dynamically
-        function renderProductTable(products, query) {
+        function renderProducts(products, query) {
+            const tableBody = document.getElementById('productTableBody');
             if (!tableBody) return;
 
             if (!products || products.length === 0) {
                 const message = query ? `No products found matching "${escapeHtml(query)}".` : 'No products found.';
                 tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                    <tr id="noRecordsRow">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <em>${message}</em>
                         </td>
                     </tr>
@@ -266,13 +309,14 @@
                 return;
             }
 
+            const startIndex = (currentPage - 1) * 10 + 1;
             let html = '';
-            products.forEach(p => {
+            products.forEach((p, index) => {
+                const serialNo = startIndex + index;
                 const brand = p.brand ? `<span class="badge-brand">${escapeHtml(p.brand)}</span>` : '-';
                 const categoryBadge = p.category
                     ? `<span class="badge-category">${escapeHtml(p.category)}</span>`
                     : '<span>-</span>';
-                const size = p.size ? escapeHtml(p.size) : '-';
                 const formattedPrice = Number(p.price).toLocaleString('en-IN', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
@@ -280,6 +324,21 @@
                 const date = p.createdDate || '-';
                 const name = escapeHtml(p.name);
                 const safeNameForConfirm = name.replace(/'/g, "\\'");
+
+                const productImg = p.image || p.imageUrl;
+                const imgHtml = productImg
+                    ? `<a href="/Product/Details/${p.productId}" title="View Details"><img src="${escapeHtml(productImg)}" alt="${escapeHtml(name)}" class="table-img-thumb" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'table-img-placeholder\\'><i class=\\'bi bi-image\\'></i></div>';" /></a>`
+                    : `<div class="table-img-placeholder" title="No Image"><i class="bi bi-image"></i></div>`;
+
+                const stockHtml = p.stockQuantity > 0 
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle">${p.stockQuantity} in stock</span>`
+                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">0 in stock</span>`;
+
+                const imeiBadge = p.trackImei ? `<div class="mt-1"><span class="badge bg-primary-subtle text-primary small">IMEI Tracked</span></div>` : '';
+
+                const specsHtml = (p.ram || p.storage)
+                    ? `<div class="small text-muted">${escapeHtml(p.ram || '')}/${escapeHtml(p.storage || '')} ${p.color ? '&bull; ' + escapeHtml(p.color) : ''}</div>`
+                    : '';
 
                 const statusBtn = p.isActive
                     ? `<button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Product', ${p.productId}, this)" title="Click to turn OFF (Inactive)">
@@ -291,16 +350,23 @@
 
                 html += `
                     <tr>
-                        <td class="fw-bold text-center">${p.productId}</td>
-                        <td>${name}</td>
+                        <td class="fw-bold text-center">${serialNo}</td>
+                        <td class="text-center">${imgHtml}</td>
+                        <td>
+                            <a href="/Product/Details/${p.productId}" class="text-decoration-none fw-semibold">${name}</a>
+                            ${specsHtml}
+                        </td>
                         <td>${brand}</td>
                         <td>${categoryBadge}</td>
                         <td class="text-end fw-semibold"><span class="badge-price">₹${formattedPrice}</span></td>
-                        <td>${size}</td>
+                        <td class="text-center">${stockHtml}${imeiBadge}</td>
                         <td class="text-center">${statusBtn}</td>
                         <td>${date}</td>
                         <td class="text-center">
                             <div class="d-flex gap-2 justify-content-center">
+                                <a href="/Product/Details/${p.productId}" class="btn btn-sm btn-outline-info" title="View Details">
+                                    View
+                                </a>
                                 <a href="/Product/Edit/${p.productId}" class="btn btn-sm btn-outline-primary" title="Edit">
                                     Edit
                                 </a>
@@ -316,37 +382,25 @@
             tableBody.innerHTML = html;
         }
 
-        // Render pagination controls dynamically
-        function renderPagination(pageNo, hasNext) {
-            pageIndicator.innerText = `Page ${pageNo}`;
+        function renderPagination(page, hasNext) {
+            currentPage = page;
+            const pageSpan = document.getElementById('currentPageSpan');
+            if (pageSpan) pageSpan.innerText = page;
 
-            if (pageNo > 1) {
-                prevPageBtn.innerHTML = `
-                    <button type="button" onclick="triggerSearch(${pageNo - 1})" class="btn btn-outline-primary btn-sm">
-                        &laquo; Previous
-                    </button>
-                `;
-            } else {
-                prevPageBtn.innerHTML = '';
+            const prevBtnContainer = document.getElementById('prevPageBtn');
+            const nextBtnContainer = document.getElementById('nextPageBtn');
+
+            if (prevBtnContainer) {
+                prevBtnContainer.innerHTML = page > 1
+                    ? `<button type="button" onclick="triggerSearch(${page - 1})" class="btn btn-outline-primary btn-sm">&laquo; Previous</button>`
+                    : '';
             }
 
-            if (hasNext) {
-                nextPageBtn.innerHTML = `
-                    <button type="button" onclick="triggerSearch(${pageNo + 1})" class="btn btn-outline-primary btn-sm">
-                        Next &raquo;
-                    </button>
-                `;
-            } else {
-                nextPageBtn.innerHTML = '';
+            if (nextBtnContainer) {
+                nextBtnContainer.innerHTML = hasNext
+                    ? `<button type="button" onclick="triggerSearch(${page + 1})" class="btn btn-outline-primary btn-sm">Next &raquo;</button>`
+                    : '';
             }
-        }
-
-        // Utility to escape HTML to prevent XSS
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.innerText = text;
-            return div.innerHTML;
         }
     </script>
 }

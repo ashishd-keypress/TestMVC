@@ -1,0 +1,112 @@
+@model List<TestMVC.Models.Supplier>
+@{
+    ViewData["Title"] = "Suppliers & Distributors";
+    string? search = ViewBag.Search;
+}
+
+<form id="supplierAntiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Suppliers & Distributors</h2>
+            <p class="text-muted small mb-0">Manage smartphone brand distributors, vendors, contact details, and account balances.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <i class="bi bi-truck me-1"></i> Add Supplier
+        </a>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search supplier name, contact person, phone, GST..." />
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0" id="supplierTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 70px;" class="text-center">Sr. No.</th>
+                    <th>Supplier / Company</th>
+                    <th>Contact Person</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>GSTIN</th>
+                    <th class="text-end">Balance Due</th>
+                    <th class="text-center" style="width: 100px;">Status</th>
+                    <th class="text-center" style="width: 175px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || Model.Count == 0)
+                {
+                    <tr id="noRecordsRow">
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-truck fs-1 d-block mb-2 text-muted"></i>
+                            <em>No suppliers registered yet.</em>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    int index = 1;
+                    foreach (var s in Model)
+                    {
+                        <tr data-supplier-id="@s.SupplierId">
+                            <td class="text-center text-muted fw-semibold">@index</td>
+                            <td class="fw-bold">@s.SupplierName</td>
+                            <td>@(string.IsNullOrEmpty(s.ContactPerson) ? "-" : s.ContactPerson)</td>
+                            <td><a href="tel:@s.Phone" class="text-decoration-none">@s.Phone</a></td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(s.Email) ? "-" : s.Email)</td>
+                            <td><small class="text-muted">@(string.IsNullOrEmpty(s.GSTNumber) ? "-" : s.GSTNumber)</small></td>
+                            <td class="text-end @(s.CurrentBalance > 0 ? "text-danger fw-bold" : "text-muted")">
+                                ₹@s.CurrentBalance.ToString("N2")
+                            </td>
+                            <td class="text-center">
+                                @if (s.IsActive)
+                                {
+                                    <button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Supplier', @s.SupplierId, this)" title="Click to turn OFF (Inactive)">
+                                        <i class="bi bi-toggle-on me-1"></i> ON
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-status-off px-2 py-1" onclick="toggleStatus('Supplier', @s.SupplierId, this)" title="Click to turn ON (Active)">
+                                        <i class="bi bi-toggle-off me-1"></i> OFF
+                                    </button>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex gap-2 justify-content-center align-items-center">
+                                    <a asp-action="Edit" asp-route-id="@s.SupplierId" class="btn btn-sm btn-outline-primary" title="Edit Supplier @s.SupplierName">
+                                        <i class="bi bi-pencil-square me-1"></i>Edit
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSupplier(@s.SupplierId, '@Html.Raw(s.SupplierName.Replace("'", "\\'"))', this.closest('tr'))" title="Delete Supplier @s.SupplierName">
+                                        <i class="bi bi-trash me-1"></i>Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        index++;
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

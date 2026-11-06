@@ -15,6 +15,8 @@ namespace TestMVC.Models.ReqRes
     {
         public int CategoryId { get; set; }
         public string CategoryName { get; set; } = string.Empty;
+        public string? Image { get; set; }
+        public string? ImageUrl { get; set; }
         public bool IsActive { get; set; } = true;
         public int? UserId { get; set; }
         public DateTime? CreatedDate { get; set; }
@@ -30,6 +32,8 @@ namespace TestMVC.Models.ReqRes
     {
         public int CategoryId { get; set; }
         public string CategoryName { get; set; } = string.Empty;
+        public string? Image { get; set; }
+        public string? ImageUrl { get; set; }
         public bool IsActive { get; set; } = true;
         public int? UserId { get; set; }
     }

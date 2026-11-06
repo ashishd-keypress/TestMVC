@@ -1,4 +1,4 @@
-﻿@model List<TestMVC.Models.Category>
+@model List<TestMVC.Models.Category>
 @{
     ViewData["Title"] = "Categories";
 }
@@ -6,16 +6,15 @@
 <div class="container-fluid px-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <span class="badge px-3 py-1 mb-2" style="background: var(--category-soft); color: var(--category-color); border: 1px solid var(--category-border); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; letter-spacing: 0.05em;">ðŸ“ CATEGORY DIRECTORY</span>
             <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Categories</h2>
-            <p class="text-muted small mb-0">Organize and structure products across departments.</p>
+            <p class="text-muted small mb-0">Organize and monitor all product taxonomy and classifications.</p>
         </div>
-        <a asp-action="Create" class="btn btn-primary shadow-sm">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <a asp-action="Create" class="btn btn-primary d-flex align-items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            <span>Add Category</span>
+            Add Category
         </a>
     </div>
 
@@ -39,7 +38,8 @@
         <table class="table table-hover table-bordered align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th scope="col" style="width: 80px;" class="text-center">ID</th>
+                    <th scope="col" style="width: 70px;" class="text-center">Sr. No.</th>
+                    <th scope="col" style="width: 75px;" class="text-center">Image</th>
                     <th scope="col">Category Name</th>
                     <th scope="col" class="text-center" style="width: 110px;">Status</th>
                     <th scope="col" style="width: 200px;">Created Date</th>
@@ -50,15 +50,28 @@
                 @if (Model.Count == 0)
                 {
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
+                        <td colspan="6" class="text-center py-4 text-muted">
                             <em>No categories found.</em>
                         </td>
                     </tr>
                 }
+                @{ int serialNo = 1; }
                 @foreach (var c in Model)
                 {
                     <tr>
-                        <td class="fw-bold text-center">@c.CategoryId</td>
+                        <td class="fw-bold text-center">@(serialNo++)</td>
+                        <td class="text-center">
+                            @if (!string.IsNullOrEmpty(c.ImageUrl))
+                            {
+                                <img src="@c.ImageUrl" alt="@c.CategoryName" class="table-img-thumb" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\'table-img-placeholder\'><i class=\'bi bi-image\'></i></div>';" />
+                            }
+                            else
+                            {
+                                <div class="table-img-placeholder" title="No Image">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                            }
+                        </td>
                         <td>
                             <span class="badge-category">@c.CategoryName</span>
                         </td>
@@ -77,14 +90,14 @@
                             }
                         </td>
                         <td>
-                            @(c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")
+                            @(c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-")
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-2 justify-content-center">
                                 <a asp-action="Edit" asp-route-id="@c.CategoryId" class="btn btn-sm btn-outline-primary" title="Edit">
                                     Edit
                                 </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Category', @c.CategoryId, '@c.CategoryName.Replace("'", "\\'") ', this.closest('tr'))" title="Delete">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Category', @c.CategoryId, '@c.CategoryName.Replace("'", "\\'")', this.closest('tr'))" title="Delete">
                                     Delete
                                 </button>
                             </div>

@@ -23,15 +23,30 @@ namespace TestMVC.Controllers
         // GET: /Account/Login
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult Login(string? returnUrl = null)
+        public async Task<IActionResult> Login(string? returnUrl = null)
         {
+            // If the user is already authenticated:
             if (User.Identity != null && User.Identity.IsAuthenticated)
             {
-                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !returnUrl.Equals("/Account/Login", StringComparison.OrdinalIgnoreCase) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
+                // If there's a valid local return URL that is NOT a login/logout loop, redirect there
+                if (IsSafeRedirectUrl(returnUrl))
                 {
-                    return Redirect(returnUrl);
+                    return Redirect(returnUrl!);
                 }
-                return RedirectToAction("Index", "Home");
+
+                // If returnUrl points back to Login/Logout or an access denied bounce, clear stale/corrupt cookies
+                // to completely eliminate any redirect loop (ERR_TOO_MANY_REDIRECTS)
+                if (!string.IsNullOrEmpty(returnUrl) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
+                {
+                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    Response.Cookies.Delete("TestMVC.Auth");
+                    Response.Cookies.Delete(".AspNetCore.Cookies");
+                    Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+                else
+                {
+                    return RedirectToAction("Index", "Home");
+                }
             }
 
             ViewBag.ReturnUrl = returnUrl;
@@ -102,9 +117,9 @@ namespace TestMVC.Controllers
 
             TempData["Success"] = $"Welcome, {res.Username}!";
 
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !returnUrl.Equals("/Account/Login", StringComparison.OrdinalIgnoreCase) && !returnUrl.Equals("/", StringComparison.OrdinalIgnoreCase))
+            if (IsSafeRedirectUrl(returnUrl))
             {
-                return Redirect(returnUrl);
+                return Redirect(returnUrl!);
             }
 
             return RedirectToAction("Index", "Home");
@@ -119,12 +134,22 @@ namespace TestMVC.Controllers
             return Json(new { code });
         }
 
+        // GET: /Account/AccessDenied
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+
         // GET or POST: /Account/Logout
         [HttpGet]
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            Response.Cookies.Delete("TestMVC.Auth");
+            Response.Cookies.Delete(".AspNetCore.Cookies");
             Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["Success"] = "You have been logged out successfully.";
 
@@ -134,6 +159,20 @@ namespace TestMVC.Controllers
             }
 
             return RedirectToAction(nameof(Login));
+        }
+
+        private bool IsSafeRedirectUrl(string? returnUrl)
+        {
+            if (string.IsNullOrWhiteSpace(returnUrl)) return false;
+            if (!Url.IsLocalUrl(returnUrl)) return false;
+
+            // Reject URLs that loop back to Login, Logout, or AccessDenied
+            if (returnUrl.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase)) return false;
+            if (returnUrl.Contains("/Account/Logout", StringComparison.OrdinalIgnoreCase)) return false;
+            if (returnUrl.Contains("/Account/AccessDenied", StringComparison.OrdinalIgnoreCase)) return false;
+            if (returnUrl.Trim().Equals("/", StringComparison.OrdinalIgnoreCase)) return false;
+
+            return true;
         }
 
         private static string GenerateCaptchaCode()

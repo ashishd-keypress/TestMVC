@@ -21,6 +21,13 @@ namespace TestMVC.Controllers.Api
             _authService = authService;
         }
 
+        [HttpGet("generate-captcha")]
+        public IActionResult GenerateCaptcha()
+        {
+            string code = Random.Shared.Next(1000, 9999).ToString();
+            return Ok(new { success = true, code = code });
+        }
+
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] LoginReq model)

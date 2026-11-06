@@ -41,6 +41,7 @@ namespace TestMVC.Repository
                         FROM dbo.Product p
                         LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                         LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
+                        LEFT JOIN dbo.ProductModel pm ON p.ProductModelId = pm.ProductModelId
                         WHERE (CASE WHEN COL_LENGTH('dbo.Product', 'IsDelete') IS NOT NULL THEN ISNULL(p.IsDelete, 0) ELSE 0 END) = 0
                           AND (@BrandId IS NULL OR p.BrandId = @BrandId)
                           AND (@CategoryId IS NULL OR p.CategoryId = @CategoryId)
@@ -51,6 +52,11 @@ namespace TestMVC.Repository
                                 OR p.[Name] LIKE '%' + @SearchText + '%' 
                                 OR b.BrandName LIKE '%' + @SearchText + '%' 
                                 OR c.CategoryName LIKE '%' + @SearchText + '%'
+                                OR p.SKU LIKE '%' + @SearchText + '%'
+                                OR p.Barcode LIKE '%' + @SearchText + '%'
+                                OR p.RAM LIKE '%' + @SearchText + '%'
+                                OR p.Storage LIKE '%' + @SearchText + '%'
+                                OR p.Color LIKE '%' + @SearchText + '%'
                           );", connection))
                     {
                         countCmd.Parameters.AddWithValue("@SearchText", (object?)model.SearchText ?? DBNull.Value);
@@ -71,7 +77,37 @@ namespace TestMVC.Repository
                         SELECT 
                             p.ProductId,
                             p.[Name],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS ImageUrl,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS ImagePath,
                             p.Price,
+                            p.MRP,
+                            p.SellingPrice,
+                            p.RAM,
+                            p.Storage,
+                            p.Color,
+                            p.SKU,
+                            p.Barcode,
+                            ISNULL(p.WarrantyMonths, 12) AS WarrantyMonths,
+                            ISNULL(p.TrackIMEI, 0) AS TrackIMEI,
+                            p.ProductModelId,
+                            pm.ModelName,
+                            ISNULL((SELECT SUM(sb.QuantityOnHand) FROM dbo.StockBalance sb WHERE sb.ProductId = p.ProductId), 0) AS StockQuantity,
                             p.Size,
                             p.BrandId,
                             b.BrandName AS Brand,
@@ -83,6 +119,7 @@ namespace TestMVC.Repository
                         FROM dbo.Product p
                         LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                         LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
+                        LEFT JOIN dbo.ProductModel pm ON p.ProductModelId = pm.ProductModelId
                         WHERE (CASE WHEN COL_LENGTH('dbo.Product', 'IsDelete') IS NOT NULL THEN ISNULL(p.IsDelete, 0) ELSE 0 END) = 0
                           AND (@BrandId IS NULL OR p.BrandId = @BrandId)
                           AND (@CategoryId IS NULL OR p.CategoryId = @CategoryId)
@@ -93,6 +130,11 @@ namespace TestMVC.Repository
                                 OR p.[Name] LIKE '%' + @SearchText + '%' 
                                 OR b.BrandName LIKE '%' + @SearchText + '%' 
                                 OR c.CategoryName LIKE '%' + @SearchText + '%'
+                                OR p.SKU LIKE '%' + @SearchText + '%'
+                                OR p.Barcode LIKE '%' + @SearchText + '%'
+                                OR p.RAM LIKE '%' + @SearchText + '%'
+                                OR p.Storage LIKE '%' + @SearchText + '%'
+                                OR p.Color LIKE '%' + @SearchText + '%'
                           )
                         ORDER BY p.ProductId DESC
                         OFFSET @Offset ROWS
@@ -138,7 +180,37 @@ namespace TestMVC.Repository
                         SELECT 
                             p.ProductId,
                             p.[Name],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS [Image],
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS ImageUrl,
+                            (CASE 
+                                WHEN COL_LENGTH('dbo.Product', 'Image') IS NOT NULL AND p.[Image] IS NOT NULL THEN p.[Image]
+                                WHEN COL_LENGTH('dbo.Product', 'ImageUrl') IS NOT NULL AND p.ImageUrl IS NOT NULL THEN p.ImageUrl
+                                WHEN COL_LENGTH('dbo.Product', 'ImagePath') IS NOT NULL AND p.ImagePath IS NOT NULL THEN p.ImagePath
+                                ELSE NULL 
+                            END) AS ImagePath,
                             p.Price,
+                            p.MRP,
+                            p.SellingPrice,
+                            p.RAM,
+                            p.Storage,
+                            p.Color,
+                            p.SKU,
+                            p.Barcode,
+                            ISNULL(p.WarrantyMonths, 12) AS WarrantyMonths,
+                            ISNULL(p.TrackIMEI, 0) AS TrackIMEI,
+                            p.ProductModelId,
+                            pm.ModelName,
+                            ISNULL((SELECT SUM(sb.QuantityOnHand) FROM dbo.StockBalance sb WHERE sb.ProductId = p.ProductId), 0) AS StockQuantity,
                             p.Size,
                             p.BrandId,
                             b.BrandName AS Brand,
@@ -150,6 +222,7 @@ namespace TestMVC.Repository
                         FROM dbo.Product p
                         LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                         LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
+                        LEFT JOIN dbo.ProductModel pm ON p.ProductModelId = pm.ProductModelId
                         WHERE p.ProductId = @ProductId
                           AND (@UserId IS NULL OR (CASE WHEN COL_LENGTH('dbo.Product', 'UserId') IS NOT NULL THEN ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) ELSE ISNULL(p.CreatedBY, 1) END) = @UserId)
                           AND (CASE WHEN COL_LENGTH('dbo.Product', 'IsDelete') IS NOT NULL THEN ISNULL(p.IsDelete, 0) ELSE 0 END) = 0;", connection);
@@ -185,19 +258,44 @@ namespace TestMVC.Repository
                 {
                     await connection.OpenAsync();
 
+                    var imgVal = model.Image ?? model.ImageUrl ?? model.ImagePath;
+                    decimal effectivePrice = model.Price > 0 ? model.Price : (model.SellingPrice ?? 0);
+                    decimal? effectiveSellingPrice = model.SellingPrice ?? (model.Price > 0 ? model.Price : null);
+                    decimal? effectiveMRP = model.MRP ?? effectiveSellingPrice;
+
                     if (model.ProductId <= 0)
                     {
-                        // Insert with UserId
                         using var cmd = new SqlCommand(@"
-                            INSERT INTO dbo.Product ([Name], BrandId, CategoryId, Price, Size, IsActive, IsDelete, UserId, CreatedBY, CreatedDate)
-                            VALUES (@Name, @BrandId, @CategoryId, @Price, @Size, @IsActive, 0, @UserId, @UserId, GETDATE());
+                            INSERT INTO dbo.Product (
+                                [Name], [Image], ImageUrl, ImagePath, BrandId, CategoryId, 
+                                Price, MRP, SellingPrice, Size, RAM, Storage, Color, SKU, Barcode, 
+                                WarrantyMonths, TrackIMEI, ProductModelId,
+                                IsActive, IsDelete, UserId, CreatedBY, CreatedDate
+                            )
+                            VALUES (
+                                @Name, @Image, @Image, @Image, @BrandId, @CategoryId,
+                                @Price, @MRP, @SellingPrice, @Size, @RAM, @Storage, @Color, @SKU, @Barcode,
+                                @WarrantyMonths, @TrackIMEI, @ProductModelId,
+                                @IsActive, 0, @UserId, @UserId, GETDATE()
+                            );
                             SELECT SCOPE_IDENTITY();", connection);
 
                         cmd.Parameters.AddWithValue("@Name", model.Name ?? "");
+                        cmd.Parameters.AddWithValue("@Image", (object?)imgVal ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@BrandId", (object?)model.BrandId ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@CategoryId", (object?)model.CategoryId ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Price", model.Price);
-                        cmd.Parameters.AddWithValue("@Size", (object?)model.Size ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Price", effectivePrice);
+                        cmd.Parameters.AddWithValue("@MRP", (object?)effectiveMRP ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@SellingPrice", (object?)effectiveSellingPrice ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Size", (object?)model.Size ?? "");
+                        cmd.Parameters.AddWithValue("@RAM", (object?)model.RAM ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Storage", (object?)model.Storage ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Color", (object?)model.Color ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@SKU", (object?)model.SKU ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Barcode", (object?)model.Barcode ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@WarrantyMonths", model.WarrantyMonths > 0 ? model.WarrantyMonths : 12);
+                        cmd.Parameters.AddWithValue("@TrackIMEI", model.TrackIMEI ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@ProductModelId", (object?)model.ProductModelId ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
                         cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? 1);
 
@@ -206,20 +304,47 @@ namespace TestMVC.Repository
                     }
                     else
                     {
-                        // Update scoped by UserId if specified
                         using var cmd = new SqlCommand(@"
                             UPDATE dbo.Product
                             SET [Name] = @Name,
+                                [Image] = COALESCE(@Image, [Image]),
+                                ImageUrl = COALESCE(@Image, ImageUrl),
+                                ImagePath = COALESCE(@Image, ImagePath),
+                                BrandId = @BrandId,
+                                CategoryId = @CategoryId,
                                 Price = @Price,
+                                MRP = @MRP,
+                                SellingPrice = @SellingPrice,
                                 Size = @Size,
+                                RAM = @RAM,
+                                Storage = @Storage,
+                                Color = @Color,
+                                SKU = @SKU,
+                                Barcode = @Barcode,
+                                WarrantyMonths = @WarrantyMonths,
+                                TrackIMEI = @TrackIMEI,
+                                ProductModelId = @ProductModelId,
                                 IsActive = @IsActive
                             WHERE ProductId = @ProductId
                               AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
 
                         cmd.Parameters.AddWithValue("@ProductId", model.ProductId);
                         cmd.Parameters.AddWithValue("@Name", model.Name ?? "");
-                        cmd.Parameters.AddWithValue("@Price", model.Price);
-                        cmd.Parameters.AddWithValue("@Size", (object?)model.Size ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Image", (object?)imgVal ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@BrandId", (object?)model.BrandId ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@CategoryId", (object?)model.CategoryId ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Price", effectivePrice);
+                        cmd.Parameters.AddWithValue("@MRP", (object?)effectiveMRP ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@SellingPrice", (object?)effectiveSellingPrice ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Size", (object?)model.Size ?? "");
+                        cmd.Parameters.AddWithValue("@RAM", (object?)model.RAM ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Storage", (object?)model.Storage ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Color", (object?)model.Color ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@SKU", (object?)model.SKU ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Barcode", (object?)model.Barcode ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@WarrantyMonths", model.WarrantyMonths > 0 ? model.WarrantyMonths : 12);
+                        cmd.Parameters.AddWithValue("@TrackIMEI", model.TrackIMEI ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@ProductModelId", (object?)model.ProductModelId ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@IsActive", model.IsActive ? 1 : 0);
                         cmd.Parameters.AddWithValue("@UserId", (object?)model.UserId ?? DBNull.Value);
 

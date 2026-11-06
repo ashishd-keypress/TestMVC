@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using System.Threading.Tasks;
 using TestMVC.Interface;
 using TestMVC.Models;
 using TestMVC.Models.ReqRes;
+using Utility;
 
 namespace TestMVC.Controllers
 {
@@ -12,10 +14,12 @@ namespace TestMVC.Controllers
     public class CategoryController : Controller
     {
         private readonly ICategoryService _categoryService;
+        private readonly IWebHostEnvironment _env;
 
-        public CategoryController(ICategoryService categoryService)
+        public CategoryController(ICategoryService categoryService, IWebHostEnvironment env)
         {
             _categoryService = categoryService;
+            _env = env;
         }
 
         // GET: /Category
@@ -27,6 +31,7 @@ namespace TestMVC.Controllers
             {
                 CategoryId = c.CategoryId,
                 CategoryName = c.CategoryName,
+                ImageUrl = c.ImageUrl,
                 IsActive = c.IsActive,
                 UserId = c.UserId,
                 CreatedDate = c.CreatedDate
@@ -47,9 +52,22 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Category category)
         {
+            // Mandatory Image Upload on Create
+            var (imgValid, imgErr) = FileHelper.ValidateImage(category.ImageFile, isRequired: true);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
+
             if (!ModelState.IsValid)
             {
                 return View(category);
+            }
+
+            string? savedImageUrl = null;
+            if (category.ImageFile != null && category.ImageFile.Length > 0)
+            {
+                savedImageUrl = await FileHelper.SaveImageAsync(category.ImageFile, _env, "categories");
             }
 
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -57,6 +75,7 @@ namespace TestMVC.Controllers
             {
                 CategoryId = 0,
                 CategoryName = category.CategoryName,
+                ImageUrl = savedImageUrl,
                 IsActive = category.IsActive,
                 UserId = currentUserId
             });
@@ -67,7 +86,24 @@ namespace TestMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            ModelState.AddModelError(string.Empty, "Failed to add category: " + err);
+            // Clean up saved image if DB insert failed
+            if (!string.IsNullOrEmpty(savedImageUrl))
+            {
+                FileHelper.DeleteImage(savedImageUrl, _env);
+            }
+
+            string errorMsg = !string.IsNullOrEmpty(err) && !err.StartsWith("{")
+                ? err
+                : "Unable to add category. Please check the entered details and try again.";
+
+            if (!string.IsNullOrEmpty(err) && err.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("CategoryName", errorMsg);
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, errorMsg);
+            }
             return View(category);
         }
 
@@ -92,6 +128,7 @@ namespace TestMVC.Controllers
             {
                 CategoryId = categoryRes.CategoryId,
                 CategoryName = categoryRes.CategoryName,
+                ImageUrl = categoryRes.ImageUrl,
                 IsActive = categoryRes.IsActive,
                 UserId = categoryRes.UserId,
                 CreatedDate = categoryRes.CreatedDate
@@ -110,16 +147,40 @@ namespace TestMVC.Controllers
                 return BadRequest();
             }
 
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (existing, _, _) = await _categoryService.GetCategoryById(new GetCategoryByIdReq { CategoryId = id, UserId = currentUserId });
+            if (existing == null)
+            {
+                TempData["Error"] = "Category not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Image validation: Must either have an existing image or a newly uploaded image
+            bool hasExisting = !string.IsNullOrEmpty(existing.ImageUrl);
+            var (imgValid, imgErr) = FileHelper.ValidateImage(category.ImageFile, isRequired: !hasExisting);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
+
             if (!ModelState.IsValid)
             {
+                category.ImageUrl = existing.ImageUrl;
                 return View(category);
             }
 
-            int? currentUserId = Utility.Helper.GetUserId(User);
+            string finalImageUrl = existing.ImageUrl ?? string.Empty;
+            if (category.ImageFile != null && category.ImageFile.Length > 0)
+            {
+                finalImageUrl = await FileHelper.SaveImageAsync(category.ImageFile, _env, "categories");
+                FileHelper.DeleteImage(existing.ImageUrl, _env);
+            }
+
             var (success, _, err) = await _categoryService.SaveCategory(new SaveCategoryReq
             {
                 CategoryId = category.CategoryId,
                 CategoryName = category.CategoryName,
+                ImageUrl = finalImageUrl,
                 IsActive = category.IsActive,
                 UserId = currentUserId
             });
@@ -130,7 +191,19 @@ namespace TestMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            ModelState.AddModelError(string.Empty, "Failed to update category: " + err);
+            string errorMsg = !string.IsNullOrEmpty(err) && !err.StartsWith("{")
+                ? err
+                : "Unable to update category. Please check the entered details and try again.";
+
+            if (!string.IsNullOrEmpty(err) && err.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("CategoryName", errorMsg);
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, errorMsg);
+            }
+            category.ImageUrl = existing.ImageUrl;
             return View(category);
         }
 
@@ -147,9 +220,10 @@ namespace TestMVC.Controllers
                 {
                     categoryId = c.CategoryId,
                     categoryName = c.CategoryName,
+                    imageUrl = c.ImageUrl,
                     isActive = c.IsActive,
                     userId = c.UserId,
-                    createdDate = c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd HH:mm") : "-"
+                    createdDate = c.CreatedDate.HasValue ? c.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-"
                 })
             });
         }
@@ -168,7 +242,13 @@ namespace TestMVC.Controllers
             }
 
             int? currentUserId = Utility.Helper.GetUserId(User);
+            var (existing, _, _) = await _categoryService.GetCategoryById(new GetCategoryByIdReq { CategoryId = id, UserId = currentUserId });
             var (res, _, _) = await _categoryService.DeleteCategory(new DeleteReq { Id = id, UserId = currentUserId });
+
+            if (res.Success && existing != null && !string.IsNullOrEmpty(existing.ImageUrl))
+            {
+                FileHelper.DeleteImage(existing.ImageUrl, _env);
+            }
 
             if (IsAjaxRequest())
             {

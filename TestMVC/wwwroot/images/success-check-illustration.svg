@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="84" height="84" fill="none">
+  <!-- Soft Outer Ring -->
+  <circle cx="50" cy="50" r="43" stroke="#d6f3d2" stroke-width="4.5" />
+  <!-- Crisp Center Checkmark -->
+  <path d="M31 52 L44 65 L70 37" stroke="#7ecb78" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

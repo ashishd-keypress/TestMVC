@@ -1,0 +1,114 @@
+@model TestMVC.Models.Purchase
+@{
+    ViewData["Title"] = $"Purchase #{Model.InvoiceNumber}";
+}
+
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Purchases
+        </a>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Inward More Stock
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0 fw-bold">
+                <i class="bi bi-box-arrow-in-down text-primary me-2"></i>Purchase Inward Details
+            </h5>
+            <span class="badge bg-success-subtle text-success fs-6 px-3 py-1">@Model.Status</span>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <h6 class="small text-muted text-uppercase fw-bold mb-1">Supplier Info</h6>
+                    <h4 class="fw-bold mb-1">@Model.SupplierName</h4>
+                    <p class="text-muted small mb-0">Phone: @Model.SupplierPhone</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="small text-muted">Bill / Invoice No: <strong class="text-dark">@Model.InvoiceNumber</strong></div>
+                    <div class="small text-muted">Purchase Date: <strong class="text-dark">@Model.PurchaseDate.ToString("yyyy-MM-dd")</strong></div>
+                    <div class="small text-muted">Recorded On: @Model.CreatedDate.ToString("yyyy-MM-dd hh:mm tt")</div>
+                </div>
+            </div>
+
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;" class="text-center">#</th>
+                            <th>Product Name</th>
+                            <th class="text-center" style="width: 80px;">Qty</th>
+                            <th class="text-end" style="width: 130px;">Unit Cost</th>
+                            <th class="text-end" style="width: 140px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int idx = 1;
+                            foreach (var item in Model.Items)
+                            {
+                                <tr>
+                                    <td class="text-center text-muted">@idx</td>
+                                    <td>
+                                        <div class="fw-semibold">@item.ProductName</div>
+                                        @if (item.TrackIMEI)
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary small">IMEI Tracked Devices Added</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-end">₹@item.UnitCost.ToString("N2")</td>
+                                    <td class="text-end fw-bold">₹@item.TotalAmount.ToString("N2")</td>
+                                </tr>
+                                idx++;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row justify-content-end">
+                <div class="col-md-5">
+                    <div class="p-3 rounded bg-light border">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Sub Total:</span>
+                            <span class="fw-semibold">₹@Model.SubTotal.ToString("N2")</span>
+                        </div>
+                        @if (Model.Discount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-danger">
+                                <span>Discount:</span>
+                                <span>-₹@Model.Discount.ToString("N2")</span>
+                            </div>
+                        }
+                        @if (Model.TaxAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-muted">
+                                <span>Tax / GST:</span>
+                                <span>+₹@Model.TaxAmount.ToString("N2")</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between border-top pt-2 mb-2 fs-5 fw-bold">
+                            <span>Grand Total:</span>
+                            <span class="text-primary">₹@Model.GrandTotal.ToString("N2")</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-success fw-semibold mb-1">
+                            <span>Paid to Supplier:</span>
+                            <span>₹@Model.PaidAmount.ToString("N2")</span>
+                        </div>
+                        @if (Model.DueAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between text-danger fw-bold border-top pt-2">
+                                <span>Balance Payable:</span>
+                                <span>₹@Model.DueAmount.ToString("N2")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,477 @@
+@model TestMVC.Models.SalesInvoice
+@using Newtonsoft.Json
+@{
+    ViewData["Title"] = "POS / Retail Billing";
+    var productsList = ViewBag.ProductsList as List<TestMVC.Models.ReqRes.GetProductRes> ?? new List<TestMVC.Models.ReqRes.GetProductRes>();
+    var customersList = ViewBag.CustomersList as List<TestMVC.Models.Customer> ?? new List<TestMVC.Models.Customer>();
+}
+
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">POS & Retail Billing</h2>
+            <p class="text-muted small mb-0">Create retail sale bill, scan or assign IMEI numbers, and record customer payments.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Invoices
+        </a>
+    </div>
+
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+    {
+        <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2 py-2 px-3 mb-3" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="flex-grow-1">
+                @foreach (var error in ViewData.ModelState[string.Empty]!.Errors)
+                {
+                    <div class="small fw-medium m-0">@error.ErrorMessage</div>
+                }
+            </div>
+            <button type="button" class="btn-close position-static p-1 ms-auto" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.72rem;"></button>
+        </div>
+    }
+
+    <form asp-action="Create" method="post" id="billingForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="itemsJson" id="itemsJsonInput" />
+
+        <div class="row g-4">
+            <!-- Left Column: Customer & Item Selection -->
+            <div class="col-lg-8">
+                <!-- Customer Details Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                            <i class="bi bi-person text-primary"></i> Customer Details
+                        </h6>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Select Existing Customer</label>
+                                <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" id="customerSelect" onchange="onCustomerSelected()">
+                                    <option value="">-- Walk-in / Retail Customer --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Customer Mobile / Name</label>
+                                <input type="text" id="custNameInput" class="form-control" placeholder="Walk-in Customer" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Product / IMEI Scanner Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header border-bottom py-3 bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                            <i class="bi bi-cart-plus text-primary"></i> Add Items to Invoice
+                        </h6>
+                        <span class="badge bg-primary-subtle text-primary small">Instant IMEI Scan Supported</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Fast IMEI / Barcode Scan Bar -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Scan or Enter Device IMEI (Quick Add)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                <input type="text" id="scanImeiInput" class="form-control" placeholder="Type or scan 15-digit IMEI number and press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault(); quickScanImei();}" />
+                                <button type="button" class="btn btn-outline-primary" onclick="quickScanImei()">
+                                    <i class="bi bi-search me-1"></i> Scan IMEI
+                                </button>
+                            </div>
+                            <div id="scanFeedback" class="small mt-1"></div>
+                        </div>
+
+                        <div class="row g-2 align-items-end border-top pt-3">
+                            <div class="col-md-5">
+                                <label class="form-label small fw-semibold">Select Product</label>
+                                <select id="productSelect" class="form-select" onchange="onProductSelected()">
+                                    <option value="">-- Select Product --</option>
+                                    @foreach (var p in productsList)
+                                    {
+                                        <option value="@p.ProductId" 
+                                                data-name="@p.Name" 
+                                                data-price="@p.Price" 
+                                                data-track="@(p.TrackIMEI ? "1" : "0")"
+                                                data-ram="@p.RAM"
+                                                data-storage="@p.Storage"
+                                                data-color="@p.Color"
+                                                data-stock="@p.StockQuantity">
+                                            @p.Name @(!string.IsNullOrEmpty(p.RAM) ? $"({p.RAM}/{p.Storage})" : "") - ₹@p.Price.ToString("N2") [@p.StockQuantity in stock]
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-3" id="imeiSelectContainer" style="display: none;">
+                                <label class="form-label small fw-semibold text-primary">Select Device IMEI *</label>
+                                <select id="deviceUnitSelect" class="form-select">
+                                    <option value="">-- Select Available IMEI --</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2" id="qtyContainer">
+                                <label class="form-label small fw-semibold">Quantity</label>
+                                <input type="number" id="itemQty" class="form-control" min="1" value="1" />
+                            </div>
+
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-primary w-100" onclick="addItemToCart()">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items Table -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header border-bottom py-3">
+                        <h6 class="card-title mb-0 fw-bold">Cart Items</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Product / Description</th>
+                                        <th>IMEI / Serial</th>
+                                        <th style="width: 80px;" class="text-center">Qty</th>
+                                        <th style="width: 120px;" class="text-end">Unit Price</th>
+                                        <th style="width: 120px;" class="text-end">Total</th>
+                                        <th style="width: 50px;" class="text-center">Del</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cartTableBody">
+                                    <tr id="emptyCartRow">
+                                        <td colspan="7" class="text-center py-4 text-muted">
+                                            <em>No products added yet. Select a product or scan an IMEI above.</em>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Bill Summary & Payment -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+                    <div class="card-header border-bottom py-3 bg-primary text-white">
+                        <h6 class="card-title mb-0 fw-bold">
+                            <i class="bi bi-receipt me-2"></i>Invoice Summary
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label asp-for="InvoiceNumber" class="form-label small fw-semibold">Invoice Number</label>
+                            <input asp-for="InvoiceNumber" class="form-control fw-bold" readonly />
+                        </div>
+
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Sub Total</span>
+                            <span class="fw-semibold" id="lblSubTotal">₹0.00</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">Discount (₹)</span>
+                            <input type="number" asp-for="Discount" id="txtDiscount" step="0.01" min="0" class="form-control form-control-sm text-end" style="width: 120px;" value="0" oninput="calculateTotals()" />
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">GST / Tax (₹)</span>
+                            <input type="number" asp-for="TaxAmount" id="txtTax" step="0.01" min="0" class="form-control form-control-sm text-end" style="width: 120px;" value="0" oninput="calculateTotals()" />
+                        </div>
+
+                        <div class="d-flex justify-content-between py-3 border-bottom fs-4 fw-bold">
+                            <span>Grand Total</span>
+                            <span class="text-primary" id="lblGrandTotal">₹0.00</span>
+                        </div>
+
+                        <input type="hidden" asp-for="SubTotal" id="hiddenSubTotal" />
+                        <input type="hidden" asp-for="GrandTotal" id="hiddenGrandTotal" />
+
+                        <!-- Payment Mode -->
+                        <div class="mt-4 mb-3">
+                            <label asp-for="PaymentMethodId" class="form-label small fw-semibold">Payment Mode</label>
+                            <select asp-for="PaymentMethodId" asp-items="ViewBag.PaymentMethods" class="form-select" id="payMethodSelect">
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PaidAmount" class="form-label small fw-semibold">Paid Amount (₹)</label>
+                            <input type="number" asp-for="PaidAmount" id="txtPaidAmount" step="0.01" min="0" class="form-control fw-bold text-end" value="0" oninput="calculateDue()" />
+                        </div>
+
+                        <div class="d-flex justify-content-between py-2 border-bottom mb-3">
+                            <span class="text-muted fw-semibold">Balance Due</span>
+                            <span class="fw-bold text-danger" id="lblDueAmount">₹0.00</span>
+                            <input type="hidden" asp-for="DueAmount" id="hiddenDueAmount" value="0" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="TransactionReference" class="form-label small fw-semibold">Payment Ref / UPI Trans ID</label>
+                            <input asp-for="TransactionReference" class="form-control form-control-sm" placeholder="e.g. UPI-12345678" />
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-3 fs-5 fw-bold shadow-sm" id="btnSubmitBill">
+                            <i class="bi bi-printer me-2"></i> Save & Generate Bill
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const cartItems = [];
+        const customersList = @Html.Raw(JsonConvert.SerializeObject(customersList));
+
+        function onCustomerSelected() {
+            const select = document.getElementById('customerSelect');
+            const custId = select.value;
+            const nameInput = document.getElementById('custNameInput');
+
+            if (custId) {
+                const found = customersList.find(c => c.CustomerId == custId);
+                if (found) {
+                    nameInput.value = `${found.CustomerName} (${found.Phone})`;
+                    return;
+                }
+            }
+            nameInput.value = 'Walk-in Customer';
+        }
+
+        async function onProductSelected() {
+            const sel = document.getElementById('productSelect');
+            const opt = sel.options[sel.selectedIndex];
+            const imeiContainer = document.getElementById('imeiSelectContainer');
+            const imeiSelect = document.getElementById('deviceUnitSelect');
+            const qtyInput = document.getElementById('itemQty');
+
+            if (!opt.value) {
+                imeiContainer.style.display = 'none';
+                return;
+            }
+
+            const trackImei = opt.getAttribute('data-track') === '1';
+
+            if (trackImei) {
+                imeiContainer.style.display = 'block';
+                qtyInput.value = 1;
+                qtyInput.readOnly = true;
+
+                imeiSelect.innerHTML = '<option value="">Loading IMEIs...</option>';
+                try {
+                    const res = await fetch(`/Inventory/AvailableByProduct?productId=${opt.value}`);
+                    const json = await res.json();
+                    if (json.success && json.devices && json.devices.length > 0) {
+                        imeiSelect.innerHTML = '<option value="">-- Choose In-Stock IMEI --</option>' + 
+                            json.devices.map(d => `<option value="${d.deviceUnitId}" data-imei1="${d.imei1}" data-imei2="${d.imei2 || ''}">${d.imei1} ${d.imei2 ? '(' + d.imei2 + ')' : ''}</option>`).join('');
+                    } else {
+                        imeiSelect.innerHTML = '<option value="">No devices in stock!</option>';
+                    }
+                } catch {
+                    imeiSelect.innerHTML = '<option value="">Failed to load IMEIs</option>';
+                }
+            } else {
+                imeiContainer.style.display = 'none';
+                qtyInput.readOnly = false;
+            }
+        }
+
+        async function quickScanImei() {
+            const input = document.getElementById('scanImeiInput');
+            const fb = document.getElementById('scanFeedback');
+            const imei = input.value.trim();
+            if (!imei) return;
+
+            fb.innerHTML = '<span class="text-muted">Searching device...</span>';
+            try {
+                const res = await fetch(`/Inventory/SearchImei?imei=${encodeURIComponent(imei)}`);
+                const json = await res.json();
+                if (json.success && json.device) {
+                    const dev = json.device;
+                    if (dev.currentStatus !== 1) {
+                        fb.innerHTML = `<span class="text-danger">Device with IMEI ${imei} is already <strong>${dev.statusName}</strong>!</span>`;
+                        return;
+                    }
+
+                    // Check if already in cart
+                    if (cartItems.some(i => i.DeviceUnitId === dev.deviceUnitId)) {
+                        fb.innerHTML = `<span class="text-warning">Device IMEI ${imei} is already in the cart!</span>`;
+                        return;
+                    }
+
+                    cartItems.push({
+                        ProductId: dev.productId,
+                        ProductName: dev.productName,
+                        RAM: dev.ram,
+                        Storage: dev.storage,
+                        Color: dev.color,
+                        TrackIMEI: true,
+                        DeviceUnitId: dev.deviceUnitId,
+                        IMEI1: dev.imei1,
+                        IMEI2: dev.imei2,
+                        Quantity: 1,
+                        UnitPrice: dev.sellingPrice || 0,
+                        Discount: 0,
+                        TaxAmount: 0,
+                        TotalAmount: dev.sellingPrice || 0
+                    });
+
+                    renderCart();
+                    input.value = '';
+                    fb.innerHTML = `<span class="text-success">Added: ${dev.productName} (IMEI: ${dev.imei1})</span>`;
+                } else {
+                    fb.innerHTML = `<span class="text-danger">${json.message || 'Device not found.'}</span>`;
+                }
+            } catch (err) {
+                fb.innerHTML = `<span class="text-danger">Scan error: ${err.message}</span>`;
+            }
+        }
+
+        function addItemToCart() {
+            const sel = document.getElementById('productSelect');
+            const opt = sel.options[sel.selectedIndex];
+            if (!opt || !opt.value) {
+                showToast('Please select a product.', 'error');
+                return;
+            }
+
+            const productId = parseInt(opt.value);
+            const productName = opt.getAttribute('data-name');
+            const unitPrice = parseFloat(opt.getAttribute('data-price')) || 0;
+            const trackImei = opt.getAttribute('data-track') === '1';
+            const ram = opt.getAttribute('data-ram') || '';
+            const storage = opt.getAttribute('data-storage') || '';
+            const color = opt.getAttribute('data-color') || '';
+            const qty = parseInt(document.getElementById('itemQty').value) || 1;
+
+            let deviceUnitId = null;
+            let imei1 = null;
+            let imei2 = null;
+
+            if (trackImei) {
+                const imeiSel = document.getElementById('deviceUnitSelect');
+                const imeiOpt = imeiSel.options[imeiSel.selectedIndex];
+                if (!imeiOpt || !imeiOpt.value) {
+                    showToast('Please select an available IMEI number for this phone.', 'error');
+                    return;
+                }
+                deviceUnitId = parseInt(imeiOpt.value);
+                imei1 = imeiOpt.getAttribute('data-imei1');
+                imei2 = imeiOpt.getAttribute('data-imei2');
+
+                if (cartItems.some(i => i.DeviceUnitId === deviceUnitId)) {
+                    showToast('This IMEI is already added to the cart.', 'warning');
+                    return;
+                }
+            }
+
+            cartItems.push({
+                ProductId: productId,
+                ProductName: productName,
+                RAM: ram,
+                Storage: storage,
+                Color: color,
+                TrackIMEI: trackImei,
+                DeviceUnitId: deviceUnitId,
+                IMEI1: imei1,
+                IMEI2: imei2,
+                Quantity: trackImei ? 1 : qty,
+                UnitPrice: unitPrice,
+                Discount: 0,
+                TaxAmount: 0,
+                TotalAmount: unitPrice * (trackImei ? 1 : qty)
+            });
+
+            renderCart();
+            document.getElementById('productSelect').value = '';
+            document.getElementById('imeiSelectContainer').style.display = 'none';
+        }
+
+        function removeItem(index) {
+            cartItems.splice(index, 1);
+            renderCart();
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cartTableBody');
+            if (cartItems.length === 0) {
+                tbody.innerHTML = `<tr id="emptyCartRow"><td colspan="7" class="text-center py-4 text-muted"><em>No products added yet. Select a product or scan an IMEI above.</em></td></tr>`;
+            } else {
+                tbody.innerHTML = cartItems.map((item, idx) => `
+                    <tr>
+                        <td class="text-muted small">${idx + 1}</td>
+                        <td>
+                            <div class="fw-semibold">${item.ProductName}</div>
+                            ${item.RAM ? `<small class="text-muted">${item.RAM}/${item.Storage} &bull; ${item.Color}</small>` : ''}
+                        </td>
+                        <td>
+                            ${item.IMEI1 ? `<code class="px-2 py-1 rounded bg-light border small text-dark">${item.IMEI1}</code>` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td class="text-center">${item.Quantity}</td>
+                        <td class="text-end">₹${item.UnitPrice.toFixed(2)}</td>
+                        <td class="text-end fw-bold">₹${item.TotalAmount.toFixed(2)}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeItem(${idx})">&times;</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            const subTotal = cartItems.reduce((acc, curr) => acc + curr.TotalAmount, 0);
+            const discount = parseFloat(document.getElementById('txtDiscount').value) || 0;
+            const tax = parseFloat(document.getElementById('txtTax').value) || 0;
+            const grandTotal = Math.max(0, subTotal - discount + tax);
+
+            document.getElementById('lblSubTotal').innerText = `₹${subTotal.toFixed(2)}`;
+            document.getElementById('lblGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
+
+            document.getElementById('hiddenSubTotal').value = subTotal.toFixed(2);
+            document.getElementById('hiddenGrandTotal').value = grandTotal.toFixed(2);
+
+            // Default Paid Amount to Grand Total if it was matching previous total
+            const paidInput = document.getElementById('txtPaidAmount');
+            if (paidInput.value === "0" || paidInput.getAttribute('data-user-edited') !== 'true') {
+                paidInput.value = grandTotal.toFixed(2);
+            }
+
+            calculateDue();
+        }
+
+        function calculateDue() {
+            const grandTotal = parseFloat(document.getElementById('hiddenGrandTotal').value) || 0;
+            const paidInput = document.getElementById('txtPaidAmount');
+            paidInput.setAttribute('data-user-edited', 'true');
+            const paid = parseFloat(paidInput.value) || 0;
+            const due = Math.max(0, grandTotal - paid);
+
+            document.getElementById('lblDueAmount').innerText = `₹${due.toFixed(2)}`;
+            document.getElementById('hiddenDueAmount').value = due.toFixed(2);
+        }
+
+        document.getElementById('billingForm').addEventListener('submit', function (e) {
+            if (cartItems.length === 0) {
+                e.preventDefault();
+                showToast('Please add at least one product or device to generate an invoice.', 'error');
+                return false;
+            }
+            document.getElementById('itemsJsonInput').value = JSON.stringify(cartItems);
+        });
+    </script>
+}

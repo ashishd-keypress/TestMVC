@@ -1,0 +1,213 @@
+@model TestMVC.Models.SalesInvoice
+@{
+    ViewData["Title"] = $"Invoice #{Model.InvoiceNumber}";
+}
+
+<div class="container-fluid px-0">
+    <!-- Non-Print Header Bar -->
+    <div class="d-print-none d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Invoices
+        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="Create" class="btn btn-outline-primary">
+                <i class="bi bi-plus-lg me-1"></i> New Sale (POS)
+            </a>
+            <button type="button" class="btn btn-primary shadow-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i> Print Invoice Bill
+            </button>
+        </div>
+    </div>
+
+    <!-- Printable Invoice Sheet -->
+    <div class="card shadow border-0 invoice-sheet mx-auto p-4 p-md-5" style="max-width: 850px; background: #ffffff; color: #1e293b;">
+        <!-- Header -->
+        <div class="row align-items-start border-bottom pb-4 mb-4">
+            <div class="col-sm-7">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div style="background: #2563eb; color: #fff; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
+                        <i class="bi bi-phone"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em;">SmartCell Mobile Store</h3>
+                </div>
+                <p class="small text-muted mb-1">Cell City Plaza, Ground Floor, Station Road, Ahmedabad</p>
+                <p class="small text-muted mb-1"><strong>Phone:</strong> +91 98765 43210 &bull; <strong>Email:</strong> billing@smartcell.store</p>
+                <p class="small text-muted mb-0"><strong>GSTIN:</strong> 24AAACS1234F1Z5</p>
+            </div>
+            <div class="col-sm-5 text-sm-end mt-3 mt-sm-0">
+                <h4 class="fw-bold text-primary mb-1">TAX INVOICE</h4>
+                <div class="small text-muted"><strong>Invoice No:</strong> <span class="fw-bold text-dark">@Model.InvoiceNumber</span></div>
+                <div class="small text-muted"><strong>Date:</strong> @Model.InvoiceDate.ToString("yyyy-MM-dd hh:mm tt")</div>
+                <div class="small text-muted"><strong>Payment Mode:</strong> <span class="badge bg-light text-dark border">@Model.PaymentMethodName</span></div>
+                @if (!string.IsNullOrEmpty(Model.TransactionReference))
+                {
+                    <div class="small text-muted"><strong>Ref ID:</strong> @Model.TransactionReference</div>
+                }
+            </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="row mb-4 p-3 rounded bg-light border">
+            <div class="col-sm-6">
+                <h6 class="fw-bold text-secondary mb-1 small text-uppercase">Billed To (Customer)</h6>
+                <div class="fw-bold text-dark fs-6">@Model.CustomerName</div>
+                <div class="small text-muted">Phone: @Model.CustomerPhone</div>
+                @if (!string.IsNullOrEmpty(Model.CustomerAddress))
+                {
+                    <div class="small text-muted">Address: @Model.CustomerAddress</div>
+                }
+                @if (!string.IsNullOrEmpty(Model.CustomerGST))
+                {
+                    <div class="small text-muted">GSTIN: @Model.CustomerGST</div>
+                }
+            </div>
+            <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+                <h6 class="fw-bold text-secondary mb-1 small text-uppercase">Invoice Status</h6>
+                <span class="badge bg-success-subtle text-success fs-6 px-3 py-1">@Model.Status</span>
+            </div>
+        </div>
+
+        <!-- Invoice Items Table -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle">
+                <thead style="background: #f1f5f9; color: #334155;">
+                    <tr>
+                        <th style="width: 40px;" class="text-center">#</th>
+                        <th>Item Description</th>
+                        <th>IMEI / Serial Numbers</th>
+                        <th style="width: 60px;" class="text-center">Qty</th>
+                        <th style="width: 110px;" class="text-end">Rate (₹)</th>
+                        <th style="width: 120px;" class="text-end">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int itemIdx = 1;
+                        foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td class="text-center text-muted small">@itemIdx</td>
+                                <td>
+                                    <div class="fw-bold text-dark">@item.ProductName</div>
+                                    @if (!string.IsNullOrEmpty(item.RAM) || !string.IsNullOrEmpty(item.Storage))
+                                    {
+                                        <small class="text-muted">Specs: @item.RAM / @item.Storage &bull; Color: @item.Color</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.IMEI1))
+                                    {
+                                        <div><strong class="small text-muted">IMEI 1:</strong> <code>@item.IMEI1</code></div>
+                                        @if (!string.IsNullOrEmpty(item.IMEI2))
+                                        {
+                                            <div><strong class="small text-muted">IMEI 2:</strong> <code>@item.IMEI2</code></div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Standard Accessory</span>
+                                    }
+                                </td>
+                                <td class="text-center">@item.Quantity</td>
+                                <td class="text-end">₹@item.UnitPrice.ToString("N2")</td>
+                                <td class="text-end fw-bold">₹@item.TotalAmount.ToString("N2")</td>
+                            </tr>
+                            itemIdx++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals & Payment Summary -->
+        <div class="row align-items-start mb-4">
+            <div class="col-sm-6">
+                <div class="p-3 rounded border bg-light small mb-3">
+                    <h6 class="fw-bold mb-1 small text-uppercase text-secondary">Terms & Conditions</h6>
+                    <ul class="mb-0 ps-3 text-muted">
+                        <li>All smartphones carry 1-Year manufacturer warranty from purchase date.</li>
+                        <li>Original invoice and retail packaging are mandatory for warranty claims.</li>
+                        <li>Physical/liquid damage and cracked screens are not covered under standard warranty.</li>
+                        <li>Goods once sold will only be replaced or repaired as per brand policy.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="table-responsive">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted">Sub Total:</td>
+                            <td class="text-end fw-semibold">₹@Model.SubTotal.ToString("N2")</td>
+                        </tr>
+                        @if (Model.Discount > 0)
+                        {
+                            <tr>
+                                <td class="text-muted">Discount:</td>
+                                <td class="text-end text-danger">-₹@Model.Discount.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (Model.TaxAmount > 0)
+                        {
+                            <tr>
+                                <td class="text-muted">GST / Tax:</td>
+                                <td class="text-end text-muted">+₹@Model.TaxAmount.ToString("N2")</td>
+                            </tr>
+                        }
+                        <tr class="border-top border-bottom fs-5">
+                            <td class="fw-bold text-dark py-2">Grand Total:</td>
+                            <td class="text-end fw-bold text-primary py-2">₹@Model.GrandTotal.ToString("N2")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-success fw-semibold">Paid Amount:</td>
+                            <td class="text-end text-success fw-semibold">₹@Model.PaidAmount.ToString("N2")</td>
+                        </tr>
+                        @if (Model.DueAmount > 0)
+                        {
+                            <tr>
+                                <td class="text-danger fw-bold">Balance Due:</td>
+                                <td class="text-end text-danger fw-bold">₹@Model.DueAmount.ToString("N2")</td>
+                            </tr>
+                        }
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Signatures -->
+        <div class="row border-top pt-4 mt-3 text-center text-sm-start align-items-end">
+            <div class="col-sm-6 text-muted small">
+                <p class="mb-0">Thank you for shopping with <strong>SmartCell Mobile Store</strong>!</p>
+                <p class="mb-0">For support, call +91 98765 43210</p>
+            </div>
+            <div class="col-sm-6 text-sm-end mt-4 mt-sm-0">
+                <div class="d-inline-block text-center" style="min-width: 180px;">
+                    <div style="border-bottom: 1px solid #94a3b8; height: 40px; margin-bottom: 5px;"></div>
+                    <span class="small text-muted">Authorized Signatory</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @@media print {
+        body {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        .sidebar, .top-navbar, .sidebar-overlay, .theme-toggle-btn, .d-print-none {
+            display: none !important;
+        }
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 !important;
+        }
+        .invoice-sheet {
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+    }
+</style>

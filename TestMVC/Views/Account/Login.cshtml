@@ -1,57 +1,91 @@
-﻿@model TestMVC.Models.ReqRes.LoginReq
+@model TestMVC.Models.ReqRes.LoginReq
 @{
-    ViewData["Title"] = "Welcome to Admin Panel";
+    ViewData["Title"] = "Store Manager Sign In";
 }
 
-<!-- Floating Theme Switcher on Login Screen -->
-<div class="login-theme-switch">
-    <button type="button" class="theme-toggle-btn shadow-sm" id="themeToggleBtn" title="Toggle Light / Dark Mode">
-        <span class="theme-sun-icon d-flex align-items-center gap-1">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-            <span class="small fw-semibold">Light</span>
-        </span>
-        <span class="theme-moon-icon d-flex align-items-center gap-1">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-            <span class="small fw-semibold">Dark</span>
-        </span>
-    </button>
-</div>
-
 <div class="login-wrapper">
-    <div class="login-card shadow-sm">
-        <div class="login-header">
-            <h2 class="login-title">Welcome to Admin Panel</h2>
+    <!-- Floating Topbar: System Status Pill & Theme Switcher -->
+    <header class="login-topbar">
+        <div class="login-app-pill">
+            <span class="login-live-dot"></span>
+            <span>Store Manager Portal</span>
+        </div>
+        <button type="button" class="login-theme-toggle theme-toggle-btn" id="themeToggleBtn" title="Switch Theme (Light / Dark)" aria-label="Toggle Theme">
+            <span class="theme-sun-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </span>
+            <span class="theme-moon-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </span>
+            <span class="theme-mode-label fw-semibold small">Dark Mode</span>
+        </button>
+    </header>
+
+    <!-- Main Card -->
+    <div class="login-card">
+        <!-- Brand Header with Logo Badge -->
+        <div class="login-brand-header">
+            <div class="login-brand-icon-wrapper">
+                <div class="login-brand-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+            </div>
+            <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
+                <h2 class="login-brand-title">TestMVC</h2>
+                <span class="badge-store-manager">Store Manager</span>
+            </div>
+            <p class="login-brand-desc">Sign in to manage your inventory, sales, and billing</p>
         </div>
 
-        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+        <!-- Success Alert (e.g. Logout message) -->
+        @if (TempData["Success"] != null)
         {
-            <div class="alert alert-danger py-2 px-3 mb-3 rounded-3 small border-0" style="background-color: #FEE2E2; color: #991B1B;">
-                @foreach (var error in ViewData.ModelState[string.Empty]!.Errors)
-                {
-                    <div class="d-flex align-items-center gap-2">
-                        <span>âš ï¸</span>
-                        <span>@error.ErrorMessage</span>
-                    </div>
-                }
+            <div class="login-alert login-alert-success" role="alert">
+                <div class="login-alert-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="login-alert-body">
+                    @TempData["Success"]
+                </div>
             </div>
         }
 
-        @if (TempData["Success"] != null)
+        <!-- Error Alert -->
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
         {
-            <div class="alert alert-success py-2 px-3 mb-3 rounded-3 small border-0" style="background-color: #DCFCE7; color: #166534;">
-                @TempData["Success"]
+            <div class="login-alert login-alert-error" role="alert">
+                <div class="login-alert-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="login-alert-body">
+                    @foreach (var error in ViewData.ModelState[string.Empty]!.Errors)
+                    {
+                        <div>@error.ErrorMessage</div>
+                    }
+                </div>
             </div>
         }
 
@@ -61,254 +95,117 @@
             <input type="hidden" asp-for="ExpectedValidationCode" id="expectedValidationCode" value="@(Model?.ExpectedValidationCode ?? ViewBag.ValidationCode)" />
 
             <!-- 1. Username Field -->
-            <div class="custom-field-wrap mb-3">
-                <input asp-for="Username"
-                       class="custom-field-input"
-                       placeholder="Username"
-                       autocomplete="username"
-                       autofocus />
+            <div class="login-input-group">
+                <label asp-for="Username" class="login-field-label">Username / Mobile</label>
+                <div class="login-input-wrap">
+                    <span class="login-input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </span>
+                    <input asp-for="Username"
+                           class="login-input"
+                           placeholder="Enter your username or phone"
+                           autocomplete="username"
+                           autofocus />
+                </div>
+                <span asp-validation-for="Username" class="login-validation-error"></span>
             </div>
-            <span asp-validation-for="Username" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
 
-            <!-- 2. Password Field with Eye Toggle Icon -->
-            <div class="custom-field-wrap mb-3">
-                <input asp-for="Password"
-                       type="password"
-                       id="loginPasswordInput"
-                       class="custom-field-input"
-                       placeholder="Password"
-                       autocomplete="current-password" />
-                <button type="button"
-                        class="field-icon-btn"
-                        id="btnTogglePassword"
-                        onclick="togglePasswordVisibility('loginPasswordInput', this)"
-                        title="Show/Hide Password"
-                        aria-label="Toggle Password Visibility">
-                    <!-- Slashed Eye SVG Icon (matching screenshot) -->
-                    <svg id="eyeOffIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                    <!-- Open Eye SVG Icon (hidden by default) -->
-                    <svg id="eyeOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                </button>
-            </div>
-            <span asp-validation-for="Password" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
-
-            <!-- 3. Validation Code Field with Dynamic Captcha Code & Refresh Button -->
-            <div class="custom-field-wrap mb-4">
-                <input asp-for="ValidationCode"
-                       id="validationCodeInput"
-                       class="custom-field-input"
-                       placeholder="Validation Code"
-                       maxlength="4"
-                       autocomplete="off" />
-                <div class="captcha-addon">
-                    <span id="captchaCodeText" class="captcha-digits">@(Model?.ExpectedValidationCode ?? ViewBag.ValidationCode)</span>
+            <!-- 2. Password Field with Eye Toggle -->
+            <div class="login-input-group">
+                <label asp-for="Password" class="login-field-label">Password</label>
+                <div class="login-input-wrap">
+                    <span class="login-input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </span>
+                    <input asp-for="Password"
+                           type="password"
+                           id="loginPasswordInput"
+                           class="login-input"
+                           placeholder="Enter your password"
+                           autocomplete="current-password" />
                     <button type="button"
-                            class="field-icon-btn btn-refresh"
-                            id="btnRefreshCaptcha"
-                            onclick="refreshCaptchaCode()"
-                            title="Refresh Validation Code"
-                            aria-label="Refresh Validation Code">
-                        <!-- Reload Arrows SVG Icon (matching screenshot) -->
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            class="login-icon-btn"
+                            id="btnTogglePassword"
+                            onclick="togglePasswordVisibility('loginPasswordInput', this)"
+                            title="Show/Hide Password"
+                            aria-label="Toggle Password Visibility">
+                        <svg id="eyeOffIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                        <svg id="eyeOnIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                     </button>
                 </div>
+                <span asp-validation-for="Password" class="login-validation-error"></span>
             </div>
-            <span asp-validation-for="ValidationCode" class="text-danger small d-block mb-2" style="font-size: 0.8rem;"></span>
 
-            <!-- 4. Login Button (Yellow/Amber Rounded Button) -->
+            <!-- 3. Validation Code (Captcha) -->
+            <div class="login-input-group mb-4">
+                <label asp-for="ValidationCode" class="login-field-label">Security Validation Code</label>
+                <div class="login-input-wrap">
+                    <span class="login-input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </span>
+                    <input asp-for="ValidationCode"
+                           id="validationCodeInput"
+                           class="login-input"
+                           placeholder="Enter 4-digit code"
+                           maxlength="4"
+                           autocomplete="off" />
+                    <div class="login-captcha-box">
+                        <span id="captchaCodeText" class="login-captcha-code">@(Model?.ExpectedValidationCode ?? ViewBag.ValidationCode)</span>
+                        <button type="button"
+                                class="login-icon-btn login-btn-refresh"
+                                id="btnRefreshCaptcha"
+                                onclick="refreshCaptchaCode()"
+                                title="Refresh Validation Code"
+                                aria-label="Refresh Validation Code">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <span asp-validation-for="ValidationCode" class="login-validation-error"></span>
+            </div>
+
+            <!-- 4. Submit Button -->
             <div class="mb-2">
-                <button type="submit" class="btn-custom-login" id="btnLoginSubmit">
-                    Login
+                <button type="submit" class="btn-store-login" id="btnLoginSubmit">
+                    <span>Sign In to Dashboard</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
                 </button>
             </div>
         </form>
+
+        <!-- Footer Microcopy -->
+        <div class="login-card-footer">
+            <span class="login-footer-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Secure Store Management System
+            </span>
+        </div>
     </div>
 </div>
-
-<style>
-    /* Full Page Background */
-    .login-wrapper {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        background-color: var(--bg-main);
-        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        position: relative;
-        transition: background-color 0.25s ease;
-    }
-
-    .login-theme-switch {
-        position: fixed;
-        top: 24px;
-        right: 24px;
-        z-index: 100;
-    }
-
-    /* Container Card */
-    .login-card {
-        background: var(--surface-card);
-        width: 100%;
-        max-width: 480px;
-        border-radius: 20px;
-        padding: 44px 38px;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--border-color);
-        transition: background-color 0.25s ease, border-color 0.25s ease;
-    }
-
-    /* Title */
-    .login-header {
-        text-align: center;
-        margin-bottom: 30px;
-    }
-
-    .login-title {
-        font-size: 26px;
-        font-weight: 800;
-        color: var(--text-main);
-        margin: 0;
-        letter-spacing: -0.4px;
-    }
-
-    /* Soft Rounded Inputs (Matching Screenshot in Light Mode, adapting cleanly in Dark Mode) */
-    .custom-field-wrap {
-        background-color: #DDE2E8;
-        border-radius: 12px;
-        height: 52px;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        transition: all 0.2s ease;
-        border: 1.5px solid transparent;
-    }
-
-    [data-theme="dark"] .custom-field-wrap {
-        background-color: #1e293b;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .custom-field-wrap:focus-within {
-        background-color: #D6DCE3;
-        border-color: #CBD5E1;
-        box-shadow: 0 0 0 3px rgba(245, 176, 39, 0.25);
-    }
-
-    [data-theme="dark"] .custom-field-wrap:focus-within {
-        background-color: #273549;
-        border-color: #f5b027;
-        box-shadow: 0 0 0 3px rgba(245, 176, 39, 0.25);
-    }
-
-    .custom-field-input {
-        flex: 1;
-        height: 100%;
-        background: transparent;
-        border: none;
-        outline: none;
-        font-size: 15px;
-        font-weight: 500;
-        color: #1F2937;
-    }
-
-    [data-theme="dark"] .custom-field-input {
-        color: #f8fafc;
-    }
-
-    .custom-field-input::placeholder {
-        color: #64748B;
-        opacity: 1;
-        font-weight: 500;
-    }
-
-    [data-theme="dark"] .custom-field-input::placeholder {
-        color: #94a3b8;
-    }
-
-    /* Field Accessory Buttons (Eye & Refresh) */
-    .field-icon-btn {
-        background: none;
-        border: none;
-        padding: 4px;
-        color: #1F2937;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.85;
-        transition: opacity 0.2s, transform 0.2s;
-    }
-
-    [data-theme="dark"] .field-icon-btn {
-        color: #f8fafc;
-    }
-
-    .field-icon-btn:hover {
-        opacity: 1;
-    }
-
-    .field-icon-btn:active {
-        transform: scale(0.92);
-    }
-
-    .captcha-addon {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-left: 8px;
-    }
-
-    .captcha-digits {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 17px;
-        font-weight: 700;
-        letter-spacing: 2.5px;
-        color: #1F2937;
-        user-select: none;
-    }
-
-    [data-theme="dark"] .captcha-digits {
-        color: #f8fafc;
-    }
-
-    /* Golden/Amber Action Button */
-    .btn-custom-login {
-        width: 100%;
-        height: 52px;
-        background-color: #F5B027;
-        color: #1F2937;
-        border: none;
-        border-radius: 12px;
-        font-size: 16px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        cursor: pointer;
-        transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-        box-shadow: 0 4px 12px rgba(245, 176, 39, 0.3);
-    }
-
-    .btn-custom-login:hover {
-        background-color: #EFA61B;
-        box-shadow: 0 6px 16px rgba(245, 176, 39, 0.4);
-        transform: translateY(-1px);
-    }
-
-    .btn-custom-login:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 6px rgba(245, 176, 39, 0.3);
-    }
-</style>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -318,7 +215,7 @@
             const btn = document.getElementById('btnRefreshCaptcha');
             if (btn) btn.style.transform = 'rotate(180deg)';
 
-            fetch('/api/Auth/generate-captcha', {
+            fetch('/Account/GetNewCaptcha', {
                 method: 'GET',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })

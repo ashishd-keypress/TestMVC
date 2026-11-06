@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="d-flex align-items-center justify-content-center" style="min-height: 70vh;">
+    <div class="text-center p-5 rounded-4 shadow-sm" style="max-width: 500px; background: var(--bg-card); border: 1px solid var(--border-color);">
+        <div class="mb-3 text-warning">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+        <h3 class="fw-bold mb-2">Access Denied</h3>
+        <p class="text-muted mb-4">You do not have permission to access the requested resource.</p>
+        <div class="d-flex justify-content-center gap-2">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-primary px-4 py-2">
+                Return to Dashboard
+            </a>
+            <a asp-controller="Account" asp-action="Logout" data-no-spa class="btn btn-outline-secondary px-4 py-2">
+                Logout
+            </a>
+        </div>
+    </div>
+</div>

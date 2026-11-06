@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TestMVC - Smooth SPA Navigation & AJAX Client Handlers
  */
 
@@ -96,6 +96,14 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Global phone number input filter - digits only (no alphabets or special characters)
+document.addEventListener('input', function (e) {
+    const target = e.target;
+    if (target && (target.type === 'tel' || target.name === 'Phone' || target.id === 'Phone' || target.getAttribute('asp-for') === 'Phone')) {
+        target.value = target.value.replace(/[^0-9]/g, '');
+    }
+});
+
 // Global AJAX Status Toggle
 async function toggleStatus(controller, id, btnElement) {
     if (!id || id <= 0) return;
@@ -105,15 +113,33 @@ async function toggleStatus(controller, id, btnElement) {
     btnElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
 
     try {
-        const response = await fetch(`/api/${controller}/toggle-status/${id}`, {
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        const token = tokenInput ? tokenInput.value : '';
+
+        let response = await fetch(`/api/${controller}/toggle-status/${id}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'RequestVerificationToken': token
             },
             body: JSON.stringify({ id: id })
         });
+
+        // Graceful fallback to MVC controller endpoint if API returned 404/405
+        if (!response.ok && (response.status === 404 || response.status === 405)) {
+            response = await fetch(`/${controller}/ToggleStatus/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ id: id })
+            });
+        }
 
         if (!response.ok) {
             throw new Error(`Server returned error ${response.status}`);
@@ -151,63 +177,432 @@ async function toggleStatus(controller, id, btnElement) {
     }
 }
 
-// Global AJAX Row Delete
+// Native Browser Popup Interceptors: Route all alerts & confirms directly to UI notifications
+window.alert = function (message) {
+    if (message) {
+        showToast(String(message), 'error');
+    }
+};
+
+window.confirm = function () {
+    // Prevent blocking browser confirm popups
+    return true;
+};
+
+// Global Confirmation & Success Modals (Kept as non-modal resolution for backward compatibility)
+function showConfirmDialog(title, message, confirmBtnText = 'Yes, Delete', cancelBtnText = 'Cancel') {
+    return Promise.resolve(true);
+}
+
+function showSuccessDialog(title, message, okBtnText = 'OK') {
+    return Promise.resolve(true);
+}
+
+// Global AJAX Row Delete with Non-Modal Inline UI Confirmation
 async function deleteItem(controller, id, itemName, rowElement) {
     if (!id || id <= 0) return;
 
-    if (!confirm(`Are you sure you want to delete '${itemName}'?`)) {
+    if (!rowElement && typeof event !== 'undefined' && event && event.target) {
+        rowElement = event.target.closest('tr');
+    }
+
+    const btn = (typeof event !== 'undefined' && event && event.target)
+        ? (event.target.closest('button') || event.target)
+        : null;
+
+    if (!itemName && rowElement) {
+        const cells = rowElement.querySelectorAll('td');
+        if (cells.length >= 3) {
+            itemName = cells[2]?.innerText?.trim();
+        }
+    }
+
+    const entityType = controller ? (controller.charAt(0).toUpperCase() + controller.slice(1).toLowerCase()) : 'Record';
+    const hasName = itemName && itemName.trim() && itemName.trim().toLowerCase() !== controller.toLowerCase();
+    const cleanName = hasName ? itemName.trim() : '';
+    const displayName = cleanName ? `${entityType} "${cleanName}"` : entityType;
+
+    // Direct Inline UI Button Confirmation (No Modal, No Popups)
+    if (btn && btn.tagName === 'BUTTON' && !btn.dataset.confirming) {
+        btn.dataset.confirming = 'true';
+        const originalHtml = btn.innerHTML;
+        const originalClasses = btn.className;
+        btn.className = 'btn btn-sm btn-danger text-nowrap';
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+
+        const timer = setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.className = originalClasses;
+            delete btn.dataset.confirming;
+            delete btn.dataset.timerId;
+        }, 4000);
+
+        btn.dataset.timerId = timer;
         return;
     }
 
-    try {
-        const response = await fetch(`/api/${controller}/delete-${controller.toLowerCase()}/${id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ id: id })
-        });
+    if (btn && btn.dataset.timerId) {
+        clearTimeout(parseInt(btn.dataset.timerId, 10));
+        delete btn.dataset.timerId;
+        delete btn.dataset.confirming;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
+    }
 
-        if (!response.ok) {
-            throw new Error(`Server returned error ${response.status}`);
+    try {
+        const tokenInput = document.querySelector('#globalAntiForgeryForm input[name="__RequestVerificationToken"]')
+            || document.querySelector('input[name="__RequestVerificationToken"]');
+        const token = tokenInput ? tokenInput.value : '';
+
+        let isSuccess = false;
+        let message = '';
+
+        try {
+            const formData = new URLSearchParams();
+            if (token) formData.append('__RequestVerificationToken', token);
+
+            const response = await fetch(`/${controller}/Delete/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'RequestVerificationToken': token
+                },
+                body: formData.toString()
+            });
+
+            if (response.ok) {
+                const json = await response.json().catch(() => null);
+                if (json) {
+                    isSuccess = json.success;
+                    message = json.message;
+                }
+            }
+        } catch {
+            // fallback to API
         }
 
-        const result = await response.json();
-        const isSuccess = result.success !== undefined ? result.success : (result.Status && result.Status.Code === 0);
-        const message = result.message || (result.Data && result.Data.Message) || (result.Status && result.Status.ReturnMessage) || `${itemName} deleted successfully.`;
+        if (!isSuccess) {
+            const apiRes = await fetch(`/api/${controller}/delete-${controller.toLowerCase()}/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ id: id })
+            });
+
+            if (apiRes.ok) {
+                const apiJson = await apiRes.json().catch(() => null);
+                if (apiJson) {
+                    isSuccess = apiJson.success !== undefined ? apiJson.success : (apiJson.Status && apiJson.Status.Code === 0);
+                    message = apiJson.message || (apiJson.Data && apiJson.Data.Message) || (apiJson.Status && apiJson.Status.ReturnMessage);
+                }
+            }
+        }
 
         if (isSuccess) {
-            showToast(message, 'success');
+            const successMsg = message || `${displayName} deleted successfully.`;
 
             if (rowElement) {
                 rowElement.style.transition = 'all 0.3s ease';
                 rowElement.style.opacity = '0';
                 rowElement.style.transform = 'translateX(20px)';
                 setTimeout(() => {
+                    const tbody = rowElement.closest('tbody') || document.querySelector('table tbody');
                     rowElement.remove();
-                    // Check if table is now empty
-                    const tbody = document.querySelector('table tbody');
-                    if (tbody && tbody.querySelectorAll('tr').length === 0) {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="10" class="text-center py-4 text-muted">
-                                    <em>No records found.</em>
-                                </td>
-                            </tr>
-                        `;
+
+                    if (tbody) {
+                        const rows = tbody.querySelectorAll('tr:not(#noRecordsRow)');
+                        if (rows.length === 0) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="10" class="text-center py-4 text-muted">
+                                        <em>No records found.</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            let startIdx = 1;
+                            const pageSpan = document.getElementById('currentPageSpan');
+                            if (pageSpan && pageSpan.innerText) {
+                                const pNo = parseInt(pageSpan.innerText, 10);
+                                if (pNo > 1) startIdx = (pNo - 1) * 10 + 1;
+                            }
+                            rows.forEach((r, idx) => {
+                                const firstCell = r.querySelector('td:first-child');
+                                if (firstCell) {
+                                    firstCell.innerText = (startIdx + idx);
+                                }
+                            });
+                        }
                     }
-                }, 300);
+                }, 250);
             }
+
+            showToast(successMsg, 'success');
         } else {
             showToast(message || 'Failed to delete.', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = 'Delete';
+            }
         }
     } catch (err) {
         console.error('Error deleting item:', err);
         showToast('Error deleting item: ' + err.message, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = 'Delete';
+        }
     }
 }
+
+// Global alias for deleteRecord
+window.deleteRecord = function (controller, id, element) {
+    const row = element ? (element.closest ? element.closest('tr') : element) : null;
+    let name = '';
+    if (row) {
+        const nameCell = row.querySelector('.badge-brand, .badge-category, td:nth-child(3)');
+        if (nameCell) name = nameCell.innerText.trim();
+    }
+    return deleteItem(controller, id, name, row);
+};
+
+// Dedicated Customer Deletion Handler with Direct Inline Button Confirmation & Animated Toast Notification
+window.deleteCustomer = async function (id, name, rowElement) {
+    if (!id || id <= 0) return;
+
+    if (!rowElement && typeof event !== 'undefined' && event && event.target) {
+        rowElement = event.target.closest('tr');
+    }
+
+    const btn = (typeof event !== 'undefined' && event && event.target)
+        ? (event.target.closest('button') || event.target)
+        : null;
+
+    const cleanName = (name || '').trim();
+    const displayName = cleanName ? `"${cleanName}"` : 'Customer';
+
+    // Direct Inline UI Button Confirmation (No Modal, No Popups)
+    if (btn && btn.tagName === 'BUTTON' && !btn.dataset.confirming) {
+        btn.dataset.confirming = 'true';
+        const originalHtml = btn.innerHTML;
+        const originalClasses = btn.className;
+        btn.className = 'btn btn-sm btn-danger text-nowrap';
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+
+        const timer = setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.className = originalClasses;
+            delete btn.dataset.confirming;
+            delete btn.dataset.timerId;
+        }, 4000);
+
+        btn.dataset.timerId = timer;
+        return;
+    }
+
+    if (btn && btn.dataset.timerId) {
+        clearTimeout(parseInt(btn.dataset.timerId, 10));
+        delete btn.dataset.timerId;
+        delete btn.dataset.confirming;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
+    }
+
+    try {
+        const tokenInput = document.querySelector('#customerAntiForgeryForm input[name="__RequestVerificationToken"]')
+            || document.querySelector('input[name="__RequestVerificationToken"]');
+        const token = tokenInput ? tokenInput.value : '';
+
+        const formData = new URLSearchParams();
+        formData.append('id', id);
+        if (token) formData.append('__RequestVerificationToken', token);
+
+        const response = await fetch(`/Customer/Delete/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'RequestVerificationToken': token
+            },
+            body: formData.toString()
+        });
+
+        const json = await response.json().catch(() => null);
+
+        if (response.ok && json && json.success) {
+            if (rowElement) {
+                rowElement.style.transition = 'all 0.3s ease';
+                rowElement.style.opacity = '0';
+                rowElement.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    const tbody = rowElement.closest('tbody') || document.querySelector('#customerTable tbody');
+                    rowElement.remove();
+
+                    if (tbody) {
+                        const rows = tbody.querySelectorAll('tr:not(#noRecordsRow)');
+                        if (rows.length === 0) {
+                            tbody.innerHTML = `
+                                <tr id="noRecordsRow">
+                                    <td colspan="8" class="text-center py-5 text-muted">
+                                        <i class="bi bi-people fs-1 d-block mb-2 text-muted"></i>
+                                        <em>No customers registered yet.</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            rows.forEach((r, idx) => {
+                                const firstCell = r.querySelector('td:first-child');
+                                if (firstCell) {
+                                    firstCell.innerText = (idx + 1);
+                                }
+                            });
+                        }
+                    }
+                }, 250);
+            }
+
+            const successMsg = cleanName
+                ? `Customer "${cleanName}" deleted successfully.`
+                : 'Customer deleted successfully.';
+            showToast(successMsg, 'success');
+        } else {
+            const errorMsg = (json && json.message) ? json.message : 'Failed to delete customer.';
+            showToast(errorMsg, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+            }
+        }
+    } catch (err) {
+        console.error('Error deleting customer:', err);
+        showToast('Error deleting customer: ' + err.message, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+        }
+    }
+};
+
+// Dedicated Supplier Deletion Handler with Direct Inline Button Confirmation & Animated Toast Notification
+window.deleteSupplier = async function (id, name, rowElement) {
+    if (!id || id <= 0) return;
+
+    if (!rowElement && typeof event !== 'undefined' && event && event.target) {
+        rowElement = event.target.closest('tr');
+    }
+
+    const btn = (typeof event !== 'undefined' && event && event.target)
+        ? (event.target.closest('button') || event.target)
+        : null;
+
+    const cleanName = (name || '').trim();
+    const displayName = cleanName ? `"${cleanName}"` : 'Supplier';
+
+    // Direct Inline UI Button Confirmation (No Modal, No Popups)
+    if (btn && btn.tagName === 'BUTTON' && !btn.dataset.confirming) {
+        btn.dataset.confirming = 'true';
+        const originalHtml = btn.innerHTML;
+        const originalClasses = btn.className;
+        btn.className = 'btn btn-sm btn-danger text-nowrap';
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+
+        const timer = setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.className = originalClasses;
+            delete btn.dataset.confirming;
+            delete btn.dataset.timerId;
+        }, 4000);
+
+        btn.dataset.timerId = timer;
+        return;
+    }
+
+    if (btn && btn.dataset.timerId) {
+        clearTimeout(parseInt(btn.dataset.timerId, 10));
+        delete btn.dataset.timerId;
+        delete btn.dataset.confirming;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
+    }
+
+    try {
+        const tokenInput = document.querySelector('#supplierAntiForgeryForm input[name="__RequestVerificationToken"]')
+            || document.querySelector('input[name="__RequestVerificationToken"]');
+        const token = tokenInput ? tokenInput.value : '';
+
+        const formData = new URLSearchParams();
+        formData.append('id', id);
+        if (token) formData.append('__RequestVerificationToken', token);
+
+        const response = await fetch(`/Supplier/Delete/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'RequestVerificationToken': token
+            },
+            body: formData.toString()
+        });
+
+        const json = await response.json().catch(() => null);
+
+        if (response.ok && json && json.success) {
+            if (rowElement) {
+                rowElement.style.transition = 'all 0.3s ease';
+                rowElement.style.opacity = '0';
+                rowElement.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    const tbody = rowElement.closest('tbody') || document.querySelector('#supplierTable tbody');
+                    rowElement.remove();
+
+                    if (tbody) {
+                        const rows = tbody.querySelectorAll('tr:not(#noRecordsRow)');
+                        if (rows.length === 0) {
+                            tbody.innerHTML = `
+                                <tr id="noRecordsRow">
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        <i class="bi bi-truck fs-1 d-block mb-2 text-muted"></i>
+                                        <em>No suppliers registered yet.</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            rows.forEach((r, idx) => {
+                                const firstCell = r.querySelector('td:first-child');
+                                if (firstCell) {
+                                    firstCell.innerText = (idx + 1);
+                                }
+                            });
+                        }
+                    }
+                }, 250);
+            }
+
+            const successMsg = cleanName
+                ? `Supplier "${cleanName}" deleted successfully.`
+                : 'Supplier deleted successfully.';
+            showToast(successMsg, 'success');
+        } else {
+            const errorMsg = (json && json.message) ? json.message : 'Failed to delete supplier.';
+            showToast(errorMsg, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+            }
+        }
+    } catch (err) {
+        console.error('Error deleting supplier:', err);
+        showToast('Error deleting supplier: ' + err.message, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+        }
+    }
+};
 
 // Seamless SPA Dynamic Navigation
 async function spaNavigate(url, pushState = true) {
@@ -332,57 +727,29 @@ window.togglePasswordVisibility = function (inputId, btn) {
     const input = document.getElementById(inputId);
     if (!input) return;
 
+    const eyeOff = btn ? btn.querySelector('#eyeOffIcon') : document.getElementById('eyeOffIcon');
+    const eyeOn = btn ? btn.querySelector('#eyeOnIcon') : document.getElementById('eyeOnIcon');
+
     if (input.type === 'password') {
         input.type = 'text';
+        if (eyeOff && eyeOn) {
+            eyeOff.style.display = 'none';
+            eyeOn.style.display = 'inline';
+        }
         if (btn) {
-            btn.innerHTML = '🙈';
             btn.setAttribute('title', 'Hide Password');
             btn.setAttribute('aria-label', 'Hide Password');
         }
     } else {
         input.type = 'password';
+        if (eyeOff && eyeOn) {
+            eyeOff.style.display = 'inline';
+            eyeOn.style.display = 'none';
+        }
         if (btn) {
-            btn.innerHTML = '👁️';
             btn.setAttribute('title', 'Show Password');
             btn.setAttribute('aria-label', 'Show Password');
         }
-    }
-};
-
-// Global User Approval Toggle
-window.toggleUserApproval = async function (userId, btn) {
-    if (!userId || userId <= 0) return;
-    btn.disabled = true;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-    try {
-        const response = await fetch(`/api/Auth/toggle-approval/${userId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-
-        if (result.success) {
-            showToast(result.message || 'User approval updated.', 'success');
-            // Smoothly refresh current SPA view
-            spaNavigate(window.location.href, false);
-        } else {
-            showToast(result.message || 'Failed to update approval.', 'error');
-            btn.innerHTML = originalText;
-        }
-    } catch (err) {
-        console.error('Error toggling approval:', err);
-        showToast('Error updating approval: ' + err.message, 'error');
-        btn.innerHTML = originalText;
-    } finally {
-        btn.disabled = false;
     }
 };
 
@@ -449,14 +816,14 @@ window.addEventListener('popstate', function (e) {
 
 // Global Theme Switcher (Light / Dark Mode)
 function initThemeSwitcher() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
+    const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
 
     document.addEventListener('click', function (e) {
         const toggleBtn = e.target.closest('#themeToggleBtn, .theme-toggle-btn');
         if (toggleBtn) {
             e.preventDefault();
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
             applyTheme(nextTheme);
         }
@@ -465,6 +832,7 @@ function initThemeSwitcher() {
 
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-bs-theme', theme);
     localStorage.setItem('theme', theme);
 
     document.querySelectorAll('.theme-mode-label').forEach(el => {
@@ -479,3 +847,22 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+
+// Global Image Upload Live Preview Handler
+function previewSelectedImage(inputElement, previewContainerId, previewImgId) {
+    if (!inputElement || !inputElement.files || !inputElement.files[0]) {
+        return;
+    }
+    const file = inputElement.files[0];
+    const container = document.getElementById(previewContainerId);
+    const img = document.getElementById(previewImgId);
+
+    if (file && img && container) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            img.src = e.target.result;
+            container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}

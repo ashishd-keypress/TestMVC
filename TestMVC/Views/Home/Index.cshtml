@@ -1,95 +1,138 @@
-﻿@model TestMVC.Models.DashboardViewModel
+@model TestMVC.Models.DashboardViewModel
 @{
     ViewData["Title"] = "DashBoard";
 }
 
-<!-- Clean & Elegant Gradient Hero Banner (No Videos) -->
+<!-- Mobile Shop Store Overview & KPI Metrics -->
 <div class="dashboard-hero-banner mb-4">
     <div class="hero-glow-orb hero-glow-1"></div>
     <div class="hero-glow-orb hero-glow-2"></div>
     <div class="hero-glow-orb hero-glow-3"></div>
 
     <div class="dashboard-hero-content">
-        <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
             <span class="hero-badge">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                 </svg>
-                <span>STORE MANAGEMENT HUB</span>
+                <span>MOBILE SHOP MANAGEMENT SYSTEM</span>
             </span>
+
+            <div class="d-flex gap-2">
+                <a asp-controller="Sales" asp-action="Create" class="btn btn-primary px-3 shadow-sm d-flex align-items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                        <line x1="6" y1="15" x2="10" y2="15"></line>
+                    </svg>
+                    <span>New Sale / POS</span>
+                </a>
+                <a asp-controller="Purchase" asp-action="Create" class="btn btn-action-brand px-3 shadow-sm d-flex align-items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                    </svg>
+                    <span>Purchase Stock In</span>
+                </a>
+            </div>
         </div>
 
-        <h1 class="hero-title mb-2">Store Overview & Performance</h1>
+        <h1 class="hero-title mb-2">SmartCell Mobile Store</h1>
         <p class="hero-subtitle mb-4">
-            Live catalog statistics, inventory metrics, brands, and administrative actions.
+            Live inventory metrics, dual-IMEI device tracking, sales invoicing, and customer accounting.
         </p>
 
-        <!-- KPI Metrics Grid with Rich Jewel Colors -->
-        <div class="row g-4 mb-4">
-            <!-- 1. Active Products Card (Sapphire / Royal Indigo) -->
-            <div class="col-md-4">
-                <a asp-controller="Product" asp-action="Index" class="kpi-card kpi-card-product h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- Primary KPI Metrics Grid -->
+        <div class="row g-3 mb-4">
+            <!-- 1. Today's Sales -->
+            <div class="col-md-3 col-sm-6">
+                <a asp-controller="Sales" asp-action="Index" class="kpi-card kpi-card-product h-100 text-decoration-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="kpi-icon kpi-icon-product">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
                         </div>
                         <span class="badge-status-pill badge-status-active">
-                            <span class="status-dot"></span> Active
+                            <span class="status-dot"></span> Today
                         </span>
                     </div>
-                    <div class="kpi-label">Active Products</div>
-                    <div class="kpi-number counter" data-target="@Model.TotalProducts">@Model.TotalProducts</div>
-                    <div class="kpi-footer text-primary d-flex align-items-center gap-1 mt-3">
-                        <span>Explore inventory</span>
+                    <div class="kpi-label">Today's Sales Revenue</div>
+                    <div class="kpi-number fs-3 fw-bold">₹@Model.TodaySalesAmount.ToString("N2")</div>
+                    <div class="kpi-footer text-primary d-flex align-items-center gap-1 mt-2">
+                        <span>View Sales Bills</span>
                         <span class="arrow">&rarr;</span>
                     </div>
                 </a>
             </div>
 
-            <!-- 2. Active Brands Card (Amethyst / Orchid Purple) -->
-            <div class="col-md-4">
-                <a asp-controller="Brand" asp-action="Index" class="kpi-card kpi-card-brand h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+            <!-- 2. In-Stock Devices -->
+            <div class="col-md-3 col-sm-6">
+                <a asp-controller="Inventory" asp-action="Index" class="kpi-card kpi-card-brand h-100 text-decoration-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="kpi-icon kpi-icon-brand">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                <line x1="12" y1="18" x2="12.01" y2="18"></line>
                             </svg>
                         </div>
                         <span class="badge-status-pill badge-status-active">
-                            <span class="status-dot"></span> Active
+                            <span class="status-dot"></span> In Stock
                         </span>
                     </div>
-                    <div class="kpi-label">Active Brands</div>
-                    <div class="kpi-number counter" data-target="@Model.TotalBrands">@Model.TotalBrands</div>
-                    <div class="kpi-footer text-purple d-flex align-items-center gap-1 mt-3">
-                        <span>Manage partners</span>
+                    <div class="kpi-label">In-Stock Mobile Phones</div>
+                    <div class="kpi-number counter" data-target="@Model.TotalInStockDevices">@Model.TotalInStockDevices</div>
+                    <div class="kpi-footer text-purple d-flex align-items-center gap-1 mt-2">
+                        <span>Check IMEI records</span>
                         <span class="arrow">&rarr;</span>
                     </div>
                 </a>
             </div>
 
-            <!-- 3. Active Categories Card (Emerald / Teal) -->
-            <div class="col-md-4">
-                <a asp-controller="Category" asp-action="Index" class="kpi-card kpi-card-category h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+            <!-- 3. Stock Valuation -->
+            <div class="col-md-3 col-sm-6">
+                <a asp-controller="Inventory" asp-action="Index" class="kpi-card kpi-card-category h-100 text-decoration-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="kpi-icon kpi-icon-category">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                             </svg>
                         </div>
                         <span class="badge-status-pill badge-status-active">
-                            <span class="status-dot"></span> Active
+                            <span class="status-dot"></span> Valuation
                         </span>
                     </div>
-                    <div class="kpi-label">Active Categories</div>
-                    <div class="kpi-number counter" data-target="@Model.TotalCategories">@Model.TotalCategories</div>
-                    <div class="kpi-footer text-teal d-flex align-items-center gap-1 mt-3">
-                        <span>Browse categories</span>
+                    <div class="kpi-label">Total Stock Value</div>
+                    <div class="kpi-number fs-3 fw-bold">₹@Model.TotalStockValue.ToString("N0")</div>
+                    <div class="kpi-footer text-teal d-flex align-items-center gap-1 mt-2">
+                        <span>Inventory value</span>
+                        <span class="arrow">&rarr;</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 4. Active Catalog Products -->
+            <div class="col-md-3 col-sm-6">
+                <a asp-controller="Product" asp-action="Index" class="kpi-card h-100 text-decoration-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="kpi-icon kpi-icon-product">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+                                <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+                                <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+                                <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+                            </svg>
+                        </div>
+                        <span class="badge-status-pill badge-status-active">
+                            <span class="status-dot"></span> Catalog
+                        </span>
+                    </div>
+                    <div class="kpi-label">Active Products & Models</div>
+                    <div class="kpi-number counter" data-target="@Model.TotalProducts">@Model.TotalProducts</div>
+                    <div class="kpi-footer text-primary d-flex align-items-center gap-1 mt-2">
+                        <span>@Model.TotalBrands Brands &bull; @Model.TotalCategories Categories</span>
                         <span class="arrow">&rarr;</span>
                     </div>
                 </a>
@@ -98,41 +141,145 @@
 
         <!-- Quick Action Shortcuts -->
         <div class="d-flex flex-wrap gap-2 pt-2">
-            <a asp-controller="Product" asp-action="Create" class="btn btn-primary px-3 shadow-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Add Product</span>
+            <a asp-controller="Sales" asp-action="Create" class="btn btn-primary px-3 shadow-sm">
+                <i class="bi bi-receipt me-1"></i> New Billing Invoice
             </a>
-            <a asp-controller="Category" asp-action="Create" class="btn btn-action-category px-3 shadow-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Add Category</span>
+            <a asp-controller="Purchase" asp-action="Create" class="btn btn-action-brand px-3 shadow-sm">
+                <i class="bi bi-box-arrow-in-down me-1"></i> Stock Inward
             </a>
-            <a asp-controller="Brand" asp-action="Create" class="btn btn-action-brand px-3 shadow-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Add Brand</span>
+            <a asp-controller="Product" asp-action="Create" class="btn btn-action-category px-3 shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Add Product
             </a>
-            <a asp-controller="Product" asp-action="Index" class="btn btn-outline-light px-3 fw-semibold">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <span>Search Catalog</span>
+            <a asp-controller="Customer" asp-action="Create" class="btn btn-outline-light px-3 fw-semibold">
+                <i class="bi bi-person-plus me-1"></i> Add Customer
             </a>
+            <a asp-controller="Supplier" asp-action="Create" class="btn btn-outline-light px-3 fw-semibold">
+                <i class="bi bi-truck me-1"></i> Add Supplier
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Two-Column Section: Recent Invoices & In-Stock Devices -->
+<div class="row g-4">
+    <!-- Left: Recent Sales Invoices -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-receipt text-primary"></i> Recent Sales Invoices
+                </h6>
+                <a asp-controller="Sales" asp-action="Index" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentInvoices == null || Model.RecentInvoices.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <em>No invoices recorded yet. Start by generating a sale bill.</em>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var inv in Model.RecentInvoices)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">
+                                            <a asp-controller="Sales" asp-action="Invoice" asp-route-id="@inv.SalesInvoiceId" class="text-decoration-none">
+                                                @inv.InvoiceNumber
+                                            </a>
+                                        </td>
+                                        <td>@inv.CustomerName</td>
+                                        <td class="small text-muted">@inv.InvoiceDate.ToString("yyyy-MM-dd hh:mm tt")</td>
+                                        <td class="text-end fw-bold">₹@inv.GrandTotal.ToString("N2")</td>
+                                        <td class="text-center">
+                                            <span class="badge-status-pill badge-status-active">@inv.Status</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a asp-controller="Sales" asp-action="Invoice" asp-route-id="@inv.SalesInvoiceId" class="btn btn-sm btn-outline-primary" title="View & Print Bill">
+                                                <i class="bi bi-printer"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: In-Stock Phones (IMEI inventory) -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-phone text-purple"></i> In-Stock Devices
+                </h6>
+                <a asp-controller="Inventory" asp-action="Index" class="btn btn-sm btn-outline-secondary">View Inventory</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Device / Model</th>
+                                <th>IMEI 1</th>
+                                <th class="text-end">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentDevices == null || Model.RecentDevices.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">
+                                        <em>No tracked devices in stock yet. Inward stock via Purchases.</em>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var dev in Model.RecentDevices)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@dev.ProductName</div>
+                                            <small class="text-muted">@(dev.RAM ?? "-") / @(dev.Storage ?? "-") &bull; @(dev.Color ?? "-")</small>
+                                        </td>
+                                        <td>
+                                            <code class="px-2 py-1 rounded bg-light border small">@dev.IMEI1</code>
+                                        </td>
+                                        <td class="text-end fw-bold text-primary">
+                                            ₹@((dev.SellingPrice ?? 0).ToString("N2"))
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Smooth Counter Animation for KPI stats
         document.addEventListener('DOMContentLoaded', () => {
             const counters = document.querySelectorAll('.counter');
             counters.forEach(counter => {

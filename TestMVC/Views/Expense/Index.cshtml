@@ -1,0 +1,96 @@
+@model List<TestMVC.Models.Expense>
+@{
+    ViewData["Title"] = "Shop Expenses";
+    string? search = ViewBag.Search;
+    decimal totalExpenses = Model.Sum(e => e.Amount);
+}
+
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.025em;">Shop Expenses</h2>
+            <p class="text-muted small mb-0">Track shop rent, electricity, staff salary, internet, transport, and tea/hospitality.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Record Expense
+        </a>
+    </div>
+
+    <!-- Expense Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="kpi-card kpi-card-product">
+                <div class="kpi-label">Total Recorded Expenses</div>
+                <div class="kpi-number fs-3">₹@totalExpenses.ToString("N2")</div>
+                <div class="small text-muted mt-2">@Model.Count transactions logged</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search expense description, category..." />
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expenses Table -->
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 70px;" class="text-center">Sr. No.</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Payment Mode</th>
+                    <th class="text-end">Amount (₹)</th>
+                    <th class="text-center" style="width: 80px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
+                            <em>No shop expenses recorded yet.</em>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    int index = 1;
+                    foreach (var e in Model)
+                    {
+                        <tr>
+                            <td class="text-center text-muted fw-semibold">@index</td>
+                            <td class="fw-semibold">@e.ExpenseDate.ToString("yyyy-MM-dd")</td>
+                            <td><span class="badge bg-secondary-subtle text-secondary">@e.CategoryName</span></td>
+                            <td>@e.Description</td>
+                            <td><span class="small text-muted">@e.PaymentMethodName</span></td>
+                            <td class="text-end fw-bold text-danger">₹@e.Amount.ToString("N2")</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', @e.ExpenseId, '@Html.Raw(e.Description.Replace("'", "\\'"))', this.closest('tr'))" title="Delete Expense">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        index++;
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

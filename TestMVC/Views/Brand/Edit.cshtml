@@ -1,4 +1,4 @@
-﻿@model TestMVC.Models.Brand
+@model TestMVC.Models.Brand
 @{
     ViewData["Title"] = "Edit Brand";
 }
@@ -21,9 +21,10 @@
                         </div>
                     }
 
-                    <form asp-action="Edit" asp-route-id="@Model.BrandId" method="post">
+                    <form asp-action="Edit" asp-route-id="@Model.BrandId" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="BrandId" />
+                        <input type="hidden" asp-for="ImageUrl" />
 
                         <div class="mb-3">
                             <label asp-for="BrandName" class="form-label fw-semibold">
@@ -31,6 +32,46 @@
                             </label>
                             <input asp-for="BrandName" class="form-control" placeholder="Enter brand name" />
                             <span asp-validation-for="BrandName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Brand Image Upload (Add / Update / Replace) -->
+                        <div class="mb-3">
+                            <label asp-for="ImageFile" class="form-label fw-semibold">
+                                Brand Image <span class="required-star">*</span>
+                            </label>
+                            <div class="image-upload-card">
+                                @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                                {
+                                    <div class="d-flex align-items-center gap-3 mb-3 p-2 rounded bg-body border">
+                                        <div class="image-preview-wrapper">
+                                            <img src="@Model.ImageUrl" alt="Current Brand Image" id="currentBrandImg" />
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-success image-preview-badge mb-1">Current Image</span>
+                                            <p class="text-muted small mb-0">Select a new file below to replace this image.</p>
+                                        </div>
+                                    </div>
+                                }
+                                <label class="form-label small fw-semibold text-muted mb-1">
+                                    @(!string.IsNullOrEmpty(Model.ImageUrl) ? "Replace Image:" : "Upload Image:")
+                                </label>
+                                <input asp-for="ImageFile" type="file" class="form-control" accept="image/*" id="brandEditImageInput" onchange="previewSelectedImage(this, 'brandEditImagePreviewContainer', 'brandEditImagePreviewImg')" />
+                                <div class="form-text small text-muted mt-1">
+                                    Allowed formats: JPG, JPEG, PNG, WEBP, GIF, SVG (Max 5MB)
+                                </div>
+                                <div id="brandEditImagePreviewContainer" class="mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="image-preview-wrapper">
+                                            <img id="brandEditImagePreviewImg" src="" alt="New Brand Preview" />
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-primary image-preview-badge mb-1">New Image Preview</span>
+                                            <p class="text-muted small mb-0">This new image will replace the current one upon saving.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <span asp-validation-for="ImageFile" class="text-danger small"></span>
                         </div>
 
                         <!-- Status Switch -->

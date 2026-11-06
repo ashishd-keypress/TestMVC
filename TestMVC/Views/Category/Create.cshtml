@@ -1,4 +1,4 @@
-﻿@model TestMVC.Models.Category
+@model TestMVC.Models.Category
 @{
     ViewData["Title"] = "Add Category";
 }
@@ -21,7 +21,7 @@
                         </div>
                     }
 
-                    <form asp-action="Create" method="post">
+                    <form asp-action="Create" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
 
                         <div class="mb-3">
@@ -30,6 +30,31 @@
                             </label>
                             <input asp-for="CategoryName" class="form-control" placeholder="e.g. Footwear, Electronics, Clothing" />
                             <span asp-validation-for="CategoryName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Category Image Upload (Mandatory) -->
+                        <div class="mb-3">
+                            <label asp-for="ImageFile" class="form-label fw-semibold">
+                                Category Image <span class="required-star">*</span>
+                            </label>
+                            <div class="image-upload-card">
+                                <input asp-for="ImageFile" type="file" class="form-control" accept="image/*" id="catImageInput" onchange="previewSelectedImage(this, 'catImagePreviewContainer', 'catImagePreviewImg')" />
+                                <div class="form-text small text-muted mt-1">
+                                    Allowed formats: JPG, JPEG, PNG, WEBP, GIF, SVG (Max 5MB)
+                                </div>
+                                <div id="catImagePreviewContainer" class="mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="image-preview-wrapper">
+                                            <img id="catImagePreviewImg" src="" alt="Category Preview" />
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-primary image-preview-badge mb-1">Image Preview</span>
+                                            <p class="text-muted small mb-0">Selected image ready to upload.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <span asp-validation-for="ImageFile" class="text-danger small"></span>
                         </div>
 
                         <!-- Status Switch -->

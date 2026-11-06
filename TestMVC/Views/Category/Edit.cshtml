@@ -1,4 +1,4 @@
-﻿@model TestMVC.Models.Category
+@model TestMVC.Models.Category
 @{
     ViewData["Title"] = "Edit Category";
 }
@@ -21,9 +21,10 @@
                         </div>
                     }
 
-                    <form asp-action="Edit" asp-route-id="@Model.CategoryId" method="post">
+                    <form asp-action="Edit" asp-route-id="@Model.CategoryId" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="CategoryId" />
+                        <input type="hidden" asp-for="ImageUrl" />
 
                         <div class="mb-3">
                             <label asp-for="CategoryName" class="form-label fw-semibold">
@@ -31,6 +32,46 @@
                             </label>
                             <input asp-for="CategoryName" class="form-control" placeholder="Enter category name" />
                             <span asp-validation-for="CategoryName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Category Image Upload (Add / Update / Replace) -->
+                        <div class="mb-3">
+                            <label asp-for="ImageFile" class="form-label fw-semibold">
+                                Category Image <span class="required-star">*</span>
+                            </label>
+                            <div class="image-upload-card">
+                                @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                                {
+                                    <div class="d-flex align-items-center gap-3 mb-3 p-2 rounded bg-body border">
+                                        <div class="image-preview-wrapper">
+                                            <img src="@Model.ImageUrl" alt="Current Category Image" id="currentCatImg" />
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-success image-preview-badge mb-1">Current Image</span>
+                                            <p class="text-muted small mb-0">Select a new file below to replace this image.</p>
+                                        </div>
+                                    </div>
+                                }
+                                <label class="form-label small fw-semibold text-muted mb-1">
+                                    @(!string.IsNullOrEmpty(Model.ImageUrl) ? "Replace Image:" : "Upload Image:")
+                                </label>
+                                <input asp-for="ImageFile" type="file" class="form-control" accept="image/*" id="catEditImageInput" onchange="previewSelectedImage(this, 'catEditImagePreviewContainer', 'catEditImagePreviewImg')" />
+                                <div class="form-text small text-muted mt-1">
+                                    Allowed formats: JPG, JPEG, PNG, WEBP, GIF, SVG (Max 5MB)
+                                </div>
+                                <div id="catEditImagePreviewContainer" class="mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="image-preview-wrapper">
+                                            <img id="catEditImagePreviewImg" src="" alt="New Category Preview" />
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-primary image-preview-badge mb-1">New Image Preview</span>
+                                            <p class="text-muted small mb-0">This new image will replace the current one upon saving.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <span asp-validation-for="ImageFile" class="text-danger small"></span>
                         </div>
 
                         <!-- Status Switch -->

@@ -33,6 +33,7 @@ namespace TestMVC.Controllers
                 Response.Cookies.Delete("TestMVC.Auth");
                 Response.Cookies.Delete(".AspNetCore.Cookies");
                 Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
+                HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
             }
 
             ViewBag.ReturnUrl = returnUrl;
@@ -137,6 +138,7 @@ namespace TestMVC.Controllers
             Response.Cookies.Delete("TestMVC.Auth");
             Response.Cookies.Delete(".AspNetCore.Cookies");
             Response.Cookies.Delete(CookieAuthenticationDefaults.AuthenticationScheme);
+            HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
             TempData["Success"] = "You have been logged out successfully.";
 
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")

@@ -40,7 +40,16 @@
         @Html.AntiForgeryToken()
     </form>
 
-    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    @{
+        var currentCtrl = ViewContext.RouteData.Values["controller"]?.ToString();
+        var currentAct = ViewContext.RouteData.Values["action"]?.ToString();
+        var isAuthScreen = string.Equals(currentCtrl, "Account", StringComparison.OrdinalIgnoreCase) &&
+                           (string.Equals(currentAct, "Login", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(currentAct, "AccessDenied", StringComparison.OrdinalIgnoreCase));
+        var showAppLayout = User.Identity != null && User.Identity.IsAuthenticated && !isAuthScreen;
+    }
+
+    @if (showAppLayout)
     {
         <div class="app-layout">
             <!-- Left Sidebar Navigation -->

@@ -228,7 +228,8 @@ async function deleteItem(controller, id, itemName, rowElement) {
         const originalHtml = btn.innerHTML;
         const originalClasses = btn.className;
         btn.className = 'btn btn-sm btn-danger text-nowrap';
-        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Confirm Delete?';
+        showToast(`Click "Confirm Delete" to remove ${displayName}.`, 'warning');
 
         const timer = setTimeout(() => {
             btn.innerHTML = originalHtml;
@@ -276,6 +277,9 @@ async function deleteItem(controller, id, itemName, rowElement) {
                 if (json) {
                     isSuccess = json.success;
                     message = json.message;
+                    if (json.stats && typeof window.updateExpenseUI === 'function') {
+                        window.updateExpenseUI(json.stats);
+                    }
                 }
             }
         } catch {
@@ -391,7 +395,8 @@ window.deleteCustomer = async function (id, name, rowElement) {
         const originalHtml = btn.innerHTML;
         const originalClasses = btn.className;
         btn.className = 'btn btn-sm btn-danger text-nowrap';
-        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Confirm Delete?';
+        showToast(`Click "Confirm Delete" to remove ${displayName}.`, 'warning');
 
         const timer = setTimeout(() => {
             btn.innerHTML = originalHtml;
@@ -508,7 +513,8 @@ window.deleteSupplier = async function (id, name, rowElement) {
         const originalHtml = btn.innerHTML;
         const originalClasses = btn.className;
         btn.className = 'btn btn-sm btn-danger text-nowrap';
-        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirm?';
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Confirm Delete?';
+        showToast(`Click "Confirm Delete" to remove ${displayName}.`, 'warning');
 
         const timer = setTimeout(() => {
             btn.innerHTML = originalHtml;

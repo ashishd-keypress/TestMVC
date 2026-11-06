@@ -105,10 +105,78 @@ namespace TestMVC.Controllers
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                 Request.Headers.Accept.ToString().Contains("application/json"))
             {
-                return Json(new { success, message = success ? "Expense deleted." : "Failed to delete expense." });
+                if (!success)
+                {
+                    return Json(new { success = false, message = "Failed to delete expense." });
+                }
+
+                // Recalculate fresh stats directly from DB
+                var allExpenses = await _expenseService.GetExpenses();
+                DateTime now = DateTime.Today;
+
+                var currentMonthExpenses = allExpenses
+                    .Where(e => e.ExpenseDate.Year == now.Year && e.ExpenseDate.Month == now.Month)
+                    .ToList();
+                decimal currentMonthTotal = currentMonthExpenses.Sum(e => e.Amount);
+                int currentMonthCount = currentMonthExpenses.Count;
+                string currentMonthName = now.ToString("MMMM yyyy");
+
+                var monthlySummaries = allExpenses
+                    .GroupBy(e => new { e.ExpenseDate.Year, e.ExpenseDate.Month })
+                    .Select(g => new
+                    {
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        MonthDate = new DateTime(g.Key.Year, g.Key.Month, 1),
+                        MonthName = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy"),
+                        Total = g.Sum(x => x.Amount),
+                        Count = g.Count(),
+                        IsCurrentMonth = (g.Key.Year == now.Year && g.Key.Month == now.Month),
+                        IsCompleted = (new DateTime(g.Key.Year, g.Key.Month, 1).AddMonths(1) <= now)
+                    })
+                    .OrderByDescending(m => m.MonthDate)
+                    .ToList();
+
+                var completedMonths = monthlySummaries.Where(m => m.IsCompleted).ToList();
+                decimal completedMonthsTotal = completedMonths.Sum(m => m.Total);
+                decimal allTimeTotal = allExpenses.Sum(e => e.Amount);
+                int allTimeCount = allExpenses.Count;
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Expense deleted successfully.",
+                    stats = new
+                    {
+                        currentMonthTotal = currentMonthTotal,
+                        currentMonthTotalFormatted = currentMonthTotal.ToString("N2"),
+                        currentMonthCount = currentMonthCount,
+                        currentMonthName = currentMonthName,
+
+                        completedMonthsTotal = completedMonthsTotal,
+                        completedMonthsTotalFormatted = completedMonthsTotal.ToString("N2"),
+                        completedMonthsCount = completedMonths.Count,
+
+                        allTimeTotal = allTimeTotal,
+                        allTimeTotalFormatted = allTimeTotal.ToString("N2"),
+                        allTimeCount = allTimeCount,
+
+                        monthlySummaries = monthlySummaries.Select(m => new
+                        {
+                            year = m.Year,
+                            month = m.Month,
+                            monthName = m.MonthName,
+                            total = m.Total,
+                            totalFormatted = m.Total.ToString("N2"),
+                            count = m.Count,
+                            isCurrentMonth = m.IsCurrentMonth,
+                            isCompleted = m.IsCompleted
+                        }).ToList()
+                    }
+                });
             }
 
-            if (success) TempData["Success"] = "Expense deleted.";
+            if (success) TempData["Success"] = "Expense deleted successfully.";
             else TempData["Error"] = "Failed to delete expense.";
 
             return RedirectToAction(nameof(Index));

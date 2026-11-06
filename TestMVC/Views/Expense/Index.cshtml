@@ -44,25 +44,25 @@
         </a>
     </div>
 
-    <!-- Expense Stats -->
+    <!-- Expense Stats (Updated immediately on delete without refresh) -->
     <div class="row g-3 mb-4">
-        <!-- 1. Total Recorded Expenses (Current Month only as requested in item 3) -->
+        <!-- 1. Total Recorded Expenses (Current Month only) -->
         <div class="col-md-6 col-lg-4">
             <div class="kpi-card kpi-card-product">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="kpi-label">TOTAL RECORDED EXPENSES</span>
-                    <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(99, 102, 241, 0.18); color: #818cf8; font-size: 0.72rem; font-weight: 600;">
+                    <span class="badge rounded-pill px-2.5 py-1" id="kpiCurrentMonthBadge" style="background: rgba(99, 102, 241, 0.18); color: #818cf8; font-size: 0.72rem; font-weight: 600;">
                         @currentMonthName
                     </span>
                 </div>
-                <div class="kpi-number fs-3 text-nowrap">₹@currentMonthTotal.ToString("N2")</div>
-                <div class="small text-muted mt-2">
+                <div class="kpi-number fs-3 text-nowrap" id="kpiCurrentMonthTotal">₹@currentMonthTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2" id="kpiCurrentMonthSubtitle">
                     <i class="bi bi-clock-history me-1"></i>@currentMonthCount transactions logged in @currentMonthName
                 </div>
             </div>
         </div>
 
-        <!-- 2. Completed Months Summary (as requested in item 2) -->
+        <!-- 2. Completed Months Summary -->
         <div class="col-md-6 col-lg-4">
             <div class="kpi-card kpi-card-category">
                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -71,8 +71,8 @@
                         <i class="bi bi-check-circle-fill me-1"></i>Completed
                     </span>
                 </div>
-                <div class="kpi-number fs-3 text-nowrap">₹@completedMonthsTotal.ToString("N2")</div>
-                <div class="small text-muted mt-2">
+                <div class="kpi-number fs-3 text-nowrap" id="kpiCompletedMonthsTotal">₹@completedMonthsTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2" id="kpiCompletedMonthsSubtitle">
                     <i class="bi bi-archive me-1"></i>Total for @completedMonths.Count completed month(s)
                 </div>
             </div>
@@ -87,43 +87,51 @@
                         All History
                     </span>
                 </div>
-                <div class="kpi-number fs-3 text-nowrap">₹@allTimeTotal.ToString("N2")</div>
-                <div class="small text-muted mt-2">
+                <div class="kpi-number fs-3 text-nowrap" id="kpiAllTimeTotal">₹@allTimeTotal.ToString("N2")</div>
+                <div class="small text-muted mt-2" id="kpiAllTimeSubtitle">
                     <i class="bi bi-receipt me-1"></i>@Model.Count transactions across all history
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Monthly Expense Summary (Completed & Active Months Breakdown - Item 2) -->
-    @if (monthlySummaries.Count > 0)
-    {
-        <div class="card shadow-sm mb-4 border-0">
-            <div class="card-header d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="rounded-3 p-2 d-inline-flex" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">
-                        <i class="bi bi-calendar3 fs-5"></i>
-                    </div>
-                    <div>
-                        <h6 class="mb-0 fw-bold">Monthly Expense Summary</h6>
-                        <small class="text-muted">Calculated totals grouped by completed and active months based on expense dates</small>
-                    </div>
+    <!-- Monthly Expense Summary (Completed & Active Months Breakdown) -->
+    <div class="card shadow-sm mb-4 border-0" id="monthlyExpenseSummarySection">
+        <div class="card-header d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-3 p-2 d-inline-flex" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">
+                    <i class="bi bi-calendar3 fs-5"></i>
                 </div>
-                <span class="badge bg-secondary-subtle text-secondary">@monthlySummaries.Count Month(s) Recorded</span>
+                <div>
+                    <h6 class="mb-0 fw-bold">Monthly Expense Summary</h6>
+                    <small class="text-muted">Calculated totals grouped by completed and active months based on expense dates</small>
+                </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+            <span class="badge bg-secondary-subtle text-secondary" id="monthlyExpenseSummaryCount">@monthlySummaries.Count Month(s) Recorded</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="padding-left: 1.25rem;">Month & Year</th>
+                            <th>Status</th>
+                            <th class="text-center">Transactions</th>
+                            <th class="text-end" style="padding-right: 1.25rem;">Total Expenses (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyExpenseSummaryTbody">
+                        @if (monthlySummaries.Count == 0)
+                        {
                             <tr>
-                                <th style="padding-left: 1.25rem;">Month & Year</th>
-                                <th>Status</th>
-                                <th class="text-center">Transactions</th>
-                                <th class="text-end" style="padding-right: 1.25rem;">Total Expenses (₹)</th>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    <em>No monthly expense data available yet.</em>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var mg in monthlySummaries)
+                        }
+                        else
+                        {
+                            foreach (var mg in monthlySummaries)
                             {
                                 <tr>
                                     <td style="padding-left: 1.25rem;">
@@ -153,12 +161,12 @@
                                     </td>
                                 </tr>
                             }
-                        </tbody>
-                    </table>
-                </div>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
-    }
+    </div>
 
     <!-- Search Bar -->
     <div class="card shadow-sm mb-4 border-0">
@@ -178,13 +186,13 @@
         </div>
     </div>
 
-    <!-- Expenses Table (Columns: Date, Description, Category, Amount, Actions - Item 4) -->
+    <!-- Expenses Table (Columns: Date, Description, Category, Amount, Actions) -->
     <div class="card shadow-sm border-0">
         <div class="card-header py-3 bg-transparent border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold">
                 <i class="bi bi-list-check me-2 text-primary"></i>All Expense Records
             </h6>
-            <span class="small text-muted">Showing @Model.Count record(s)</span>
+            <span class="small text-muted" id="tableExpenseRecordCount">Showing @Model.Count record(s)</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover table-bordered align-middle mb-0">
@@ -197,10 +205,10 @@
                         <th class="text-center" style="width: 170px;">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="expenseTableBody">
                     @if (Model.Count == 0)
                     {
-                        <tr>
+                        <tr id="noExpensesRow">
                             <td colspan="5" class="text-center py-5 text-muted">
                                 <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
                                 <em>No shop expenses recorded yet.</em>
@@ -211,7 +219,7 @@
                     {
                         foreach (var e in Model)
                         {
-                            <tr>
+                            <tr id="expense-row-@e.ExpenseId" data-expense-id="@e.ExpenseId" data-amount="@e.Amount" data-date="@e.ExpenseDate.ToString("yyyy-MM-dd")">
                                 <!-- 1. Date -->
                                 <td class="fw-semibold text-nowrap">
                                     <i class="bi bi-calendar-event me-1 text-muted"></i>
@@ -235,7 +243,7 @@
                                 <td class="text-end fw-bold text-danger fs-6 text-nowrap">
                                     ₹@e.Amount.ToString("N2")
                                 </td>
-                                <!-- 5. Actions (Edit and Delete - Item 1) -->
+                                <!-- 5. Actions (Edit & Delete with Confirmation & Live Recalculation) -->
                                 <td class="text-center">
                                     <div class="d-inline-flex gap-1">
                                         <a asp-action="Edit" asp-route-id="@e.ExpenseId" class="btn btn-sm btn-outline-primary" title="Edit Expense">
@@ -254,3 +262,95 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Automatic Dynamic Recalculation & DOM Synchronization for Expenses
+        window.updateExpenseUI = function (stats) {
+            if (!stats) return;
+
+            // 1. Current Month KPI Card
+            const elCurrTotal = document.getElementById('kpiCurrentMonthTotal');
+            const elCurrSub = document.getElementById('kpiCurrentMonthSubtitle');
+            if (elCurrTotal && stats.currentMonthTotalFormatted !== undefined) {
+                elCurrTotal.innerText = '₹' + stats.currentMonthTotalFormatted;
+            }
+            if (elCurrSub && stats.currentMonthName) {
+                elCurrSub.innerHTML = `<i class="bi bi-clock-history me-1"></i>${stats.currentMonthCount} transactions logged in ${stats.currentMonthName}`;
+            }
+
+            // 2. Completed Months KPI Card
+            const elCompTotal = document.getElementById('kpiCompletedMonthsTotal');
+            const elCompSub = document.getElementById('kpiCompletedMonthsSubtitle');
+            if (elCompTotal && stats.completedMonthsTotalFormatted !== undefined) {
+                elCompTotal.innerText = '₹' + stats.completedMonthsTotalFormatted;
+            }
+            if (elCompSub && stats.completedMonthsCount !== undefined) {
+                elCompSub.innerHTML = `<i class="bi bi-archive me-1"></i>Total for ${stats.completedMonthsCount} completed month(s)`;
+            }
+
+            // 3. All-Time Recorded Expenses KPI Card
+            const elAllTotal = document.getElementById('kpiAllTimeTotal');
+            const elAllSub = document.getElementById('kpiAllTimeSubtitle');
+            if (elAllTotal && stats.allTimeTotalFormatted !== undefined) {
+                elAllTotal.innerText = '₹' + stats.allTimeTotalFormatted;
+            }
+            if (elAllSub && stats.allTimeCount !== undefined) {
+                elAllSub.innerHTML = `<i class="bi bi-receipt me-1"></i>${stats.allTimeCount} transactions across all history`;
+            }
+
+            // 4. Monthly Expense Summary Section
+            const summaryTbody = document.getElementById('monthlyExpenseSummaryTbody');
+            const summaryCount = document.getElementById('monthlyExpenseSummaryCount');
+
+            if (summaryCount && stats.monthlySummaries) {
+                summaryCount.innerText = `${stats.monthlySummaries.length} Month(s) Recorded`;
+            }
+
+            if (summaryTbody) {
+                if (!stats.monthlySummaries || stats.monthlySummaries.length === 0) {
+                    summaryTbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                <em>No monthly expense data available yet.</em>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    summaryTbody.innerHTML = stats.monthlySummaries.map(mg => `
+                        <tr>
+                            <td style="padding-left: 1.25rem;">
+                                <div class="fw-semibold">
+                                    <i class="bi bi-calendar-check me-2 text-primary"></i>${mg.monthName}
+                                </div>
+                            </td>
+                            <td>
+                                ${mg.isCompleted ? `
+                                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-1.5 fw-semibold">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Month Completed
+                                    </span>
+                                ` : `
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
+                                        <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
+                                    </span>
+                                `}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-body-secondary text-body">${mg.count} ${mg.count === 1 ? 'record' : 'records'}</span>
+                            </td>
+                            <td class="text-end fw-bold text-danger fs-6" style="padding-right: 1.25rem;">
+                                ₹${mg.totalFormatted}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            }
+
+            // 5. Table Record Count Badge
+            const tableRecordCount = document.getElementById('tableExpenseRecordCount');
+            if (tableRecordCount && stats.allTimeCount !== undefined) {
+                tableRecordCount.innerText = `Showing ${stats.allTimeCount} record(s)`;
+            }
+        };
+    </script>
+}

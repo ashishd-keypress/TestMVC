@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 using TestMVC.Interface;
-using TestMVC.Models;
 
 namespace TestMVC.Controllers
 {

@@ -10,7 +10,31 @@ namespace TestMVC
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            // Ensure ContentRootPath resolves to the project folder containing Views and wwwroot,
+            // regardless of whether launched via Visual Studio, IIS Express, Solution root, or dotnet CLI.
+            var contentRoot = Directory.GetCurrentDirectory();
+            if (!Directory.Exists(Path.Combine(contentRoot, "Views")))
+            {
+                var subFolder = Path.Combine(contentRoot, "TestMVC");
+                if (Directory.Exists(Path.Combine(subFolder, "Views")))
+                {
+                    contentRoot = subFolder;
+                }
+                else
+                {
+                    var baseDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+                    if (Directory.Exists(Path.Combine(baseDir, "Views")))
+                    {
+                        contentRoot = baseDir;
+                    }
+                }
+            }
+
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                Args = args,
+                ContentRootPath = contentRoot
+            });
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();

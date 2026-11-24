@@ -14,14 +14,14 @@ namespace TestMVC.Service
             _supplierRepository = supplierRepository;
         }
 
-        public Task<List<Supplier>> GetSuppliers(string? search = null)
+        public Task<List<Supplier>> GetSuppliers(string? search = null, int? userId = null)
         {
-            return _supplierRepository.GetSuppliers(search);
+            return _supplierRepository.GetSuppliers(search, userId);
         }
 
-        public Task<Supplier?> GetSupplierById(long supplierId)
+        public Task<Supplier?> GetSupplierById(long supplierId, int? userId = null)
         {
-            return _supplierRepository.GetSupplierById(supplierId);
+            return _supplierRepository.GetSupplierById(supplierId, userId);
         }
 
         public Task<bool> SaveSupplier(Supplier supplier)
@@ -29,19 +29,19 @@ namespace TestMVC.Service
             return _supplierRepository.SaveSupplier(supplier);
         }
 
-        public Task<bool> DeleteSupplier(long supplierId)
+        public Task<bool> DeleteSupplier(long supplierId, int? userId = null)
         {
-            return _supplierRepository.DeleteSupplier(supplierId);
+            return _supplierRepository.DeleteSupplier(supplierId, userId);
         }
 
-        public Task<bool> ToggleStatus(long supplierId)
+        public Task<bool> ToggleStatus(long supplierId, int? userId = null)
         {
-            return _supplierRepository.ToggleStatus(supplierId);
+            return _supplierRepository.ToggleStatus(supplierId, userId);
         }
 
-        public Task<int> GetSupplierCount()
+        public Task<int> GetSupplierCount(int? userId = null)
         {
-            return _supplierRepository.GetSupplierCount();
+            return _supplierRepository.GetSupplierCount(userId);
         }
     }
 }

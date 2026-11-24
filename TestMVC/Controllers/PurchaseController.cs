@@ -28,7 +28,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search)
         {
-            var purchases = await _purchaseService.GetPurchases(search);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var purchases = await _purchaseService.GetPurchases(search, currentUserId);
             ViewBag.Search = search;
             return View(purchases);
         }
@@ -37,7 +38,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            await LoadDropdownsAsync();
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            await LoadDropdownsAsync(currentUserId: currentUserId);
             var model = new Purchase
             {
                 InvoiceNumber = $"PUR-{DateTime.Now:yyyyMMdd}-{new Random().Next(100, 999)}",
@@ -51,6 +53,10 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Purchase purchase, string? itemsJson)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            purchase.UserId = currentUserId;
+            purchase.CreatedBy = currentUserId;
+
             if (!string.IsNullOrWhiteSpace(itemsJson))
             {
                 try
@@ -70,7 +76,7 @@ namespace TestMVC.Controllers
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdownsAsync(purchase.SupplierId);
+                await LoadDropdownsAsync(purchase.SupplierId, currentUserId);
                 return View(purchase);
             }
 
@@ -90,7 +96,7 @@ namespace TestMVC.Controllers
                 ModelState.AddModelError(string.Empty, $"Error saving purchase: {ex.Message}");
             }
 
-            await LoadDropdownsAsync(purchase.SupplierId);
+            await LoadDropdownsAsync(purchase.SupplierId, currentUserId);
             return View(purchase);
         }
 
@@ -98,7 +104,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Details(long id)
         {
-            var purchase = await _purchaseService.GetPurchaseById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var purchase = await _purchaseService.GetPurchaseById(id, currentUserId);
             if (purchase == null)
             {
                 TempData["Error"] = "Purchase record not found.";
@@ -108,10 +115,10 @@ namespace TestMVC.Controllers
             return View(purchase);
         }
 
-        private async Task LoadDropdownsAsync(long? selectedSupplier = null)
+        private async Task LoadDropdownsAsync(long? selectedSupplier = null, int? currentUserId = null)
         {
-            var suppliers = await _supplierService.GetSuppliers();
-            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true });
+            var suppliers = await _supplierService.GetSuppliers(userId: currentUserId);
+            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true, UserId = currentUserId });
 
             ViewBag.Suppliers = new SelectList(suppliers, "SupplierId", "SupplierName", selectedSupplier);
             ViewBag.ProductsList = products;

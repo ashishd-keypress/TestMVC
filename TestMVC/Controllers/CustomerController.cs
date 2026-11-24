@@ -19,7 +19,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search)
         {
-            var customers = await _customerService.GetCustomers(search);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var customers = await _customerService.GetCustomers(search, currentUserId);
             ViewBag.Search = search;
             return View(customers);
         }
@@ -36,6 +37,9 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Customer customer)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            customer.UserId = currentUserId;
+
             if (!string.IsNullOrWhiteSpace(customer.Phone))
             {
                 customer.Phone = System.Text.RegularExpressions.Regex.Replace(customer.Phone, @"[^0-9]", "");
@@ -66,7 +70,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(long id)
         {
-            var customer = await _customerService.GetCustomerById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var customer = await _customerService.GetCustomerById(id, currentUserId);
             if (customer == null)
             {
                 TempData["Error"] = "Customer not found.";
@@ -82,6 +87,9 @@ namespace TestMVC.Controllers
         public async Task<IActionResult> Edit(long id, Customer customer)
         {
             if (id != customer.CustomerId) return BadRequest();
+
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            customer.UserId = currentUserId;
 
             if (!string.IsNullOrWhiteSpace(customer.Phone))
             {
@@ -120,7 +128,8 @@ namespace TestMVC.Controllers
                 return Json(new { success = false, message = "Invalid customer identifier." });
             }
 
-            var success = await _customerService.DeleteCustomer(targetId);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var success = await _customerService.DeleteCustomer(targetId, currentUserId);
             bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                           Request.Headers.Accept.ToString().Contains("application/json") ||
                           Request.ContentType?.Contains("application/json") == true ||
@@ -148,7 +157,8 @@ namespace TestMVC.Controllers
             long targetId = id > 0 ? id : (customerId ?? 0);
             if (targetId <= 0) return Json(new { success = false, message = "Invalid customer identifier." });
 
-            var newStatus = await _customerService.ToggleStatus(targetId);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var newStatus = await _customerService.ToggleStatus(targetId, currentUserId);
             return Json(new { 
                 success = true, 
                 isActive = newStatus, 
@@ -160,7 +170,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> SearchJson(string query)
         {
-            var list = await _customerService.GetCustomers(query);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var list = await _customerService.GetCustomers(query, currentUserId);
             return Json(new { success = true, customers = list });
         }
     }

@@ -14,14 +14,14 @@ namespace TestMVC.Service
             _purchaseRepository = purchaseRepository;
         }
 
-        public Task<List<Purchase>> GetPurchases(string? search = null)
+        public Task<List<Purchase>> GetPurchases(string? search = null, int? userId = null)
         {
-            return _purchaseRepository.GetPurchases(search);
+            return _purchaseRepository.GetPurchases(search, userId);
         }
 
-        public Task<Purchase?> GetPurchaseById(long purchaseId)
+        public Task<Purchase?> GetPurchaseById(long purchaseId, int? userId = null)
         {
-            return _purchaseRepository.GetPurchaseById(purchaseId);
+            return _purchaseRepository.GetPurchaseById(purchaseId, userId);
         }
 
         public Task<long> SavePurchase(Purchase purchase)

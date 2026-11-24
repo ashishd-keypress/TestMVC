@@ -20,7 +20,7 @@ namespace TestMVC.Repository
                 ?? throw new InvalidOperationException("DefaultConnection missing");
         }
 
-        public async Task<List<Supplier>> GetSuppliers(string? search = null)
+        public async Task<List<Supplier>> GetSuppliers(string? search = null, int? userId = null)
         {
             var list = new List<Supplier>();
             using var connection = new SqlConnection(_connectionString);
@@ -38,9 +38,11 @@ namespace TestMVC.Repository
                     OpeningBalance,
                     CurrentBalance,
                     IsActive,
+                    UserId,
                     CreatedDate
                 FROM dbo.Supplier
                 WHERE (CASE WHEN COL_LENGTH('dbo.Supplier', 'IsDelete') IS NOT NULL THEN ISNULL(IsDelete, 0) ELSE 0 END) = 0
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId)
                   AND (@Search IS NULL 
                        OR SupplierName LIKE '%' + @Search + '%' 
                        OR Phone LIKE '%' + @Search + '%' 
@@ -49,12 +51,13 @@ namespace TestMVC.Repository
                 ORDER BY SupplierId DESC;", connection);
 
             cmd.Parameters.AddWithValue("@Search", (object?)search ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<Supplier>();
         }
 
-        public async Task<Supplier?> GetSupplierById(long supplierId)
+        public async Task<Supplier?> GetSupplierById(long supplierId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -71,12 +74,15 @@ namespace TestMVC.Repository
                     OpeningBalance,
                     CurrentBalance,
                     IsActive,
+                    UserId,
                     CreatedDate
                 FROM dbo.Supplier
                 WHERE SupplierId = @Id
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId)
                   AND (CASE WHEN COL_LENGTH('dbo.Supplier', 'IsDelete') IS NOT NULL THEN ISNULL(IsDelete, 0) ELSE 0 END) = 0;", connection);
 
             cmd.Parameters.AddWithValue("@Id", supplierId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToSingle<Supplier>();
@@ -90,8 +96,8 @@ namespace TestMVC.Repository
             if (supplier.SupplierId <= 0)
             {
                 using var cmd = new SqlCommand(@"
-                    INSERT INTO dbo.Supplier (SupplierName, ContactPerson, Phone, Email, GSTNumber, Address, OpeningBalance, CurrentBalance, IsActive, IsDelete, CreatedDate)
-                    VALUES (@SupplierName, @ContactPerson, @Phone, @Email, @GSTNumber, @Address, @OpeningBalance, @OpeningBalance, @IsActive, 0, GETDATE());
+                    INSERT INTO dbo.Supplier (SupplierName, ContactPerson, Phone, Email, GSTNumber, Address, OpeningBalance, CurrentBalance, IsActive, IsDelete, UserId, CreatedDate)
+                    VALUES (@SupplierName, @ContactPerson, @Phone, @Email, @GSTNumber, @Address, @OpeningBalance, @OpeningBalance, @IsActive, 0, @UserId, GETDATE());
                     SELECT SCOPE_IDENTITY();", connection);
 
                 cmd.Parameters.AddWithValue("@SupplierName", supplier.SupplierName);
@@ -102,6 +108,7 @@ namespace TestMVC.Repository
                 cmd.Parameters.AddWithValue("@Address", (object?)supplier.Address ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@OpeningBalance", supplier.OpeningBalance);
                 cmd.Parameters.AddWithValue("@IsActive", supplier.IsActive ? 1 : 0);
+                cmd.Parameters.AddWithValue("@UserId", (object?)supplier.UserId ?? 1);
 
                 var res = await cmd.ExecuteScalarAsync();
                 return res != null && Convert.ToInt64(res) > 0;
@@ -119,7 +126,8 @@ namespace TestMVC.Repository
                         OpeningBalance = @OpeningBalance,
                         CurrentBalance = ISNULL(CurrentBalance, @OpeningBalance),
                         IsActive = @IsActive
-                    WHERE SupplierId = @Id;", connection);
+                    WHERE SupplierId = @Id
+                      AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
 
                 cmd.Parameters.AddWithValue("@Id", supplier.SupplierId);
                 cmd.Parameters.AddWithValue("@SupplierName", supplier.SupplierName);
@@ -130,13 +138,14 @@ namespace TestMVC.Repository
                 cmd.Parameters.AddWithValue("@Address", (object?)supplier.Address ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@OpeningBalance", supplier.OpeningBalance);
                 cmd.Parameters.AddWithValue("@IsActive", supplier.IsActive ? 1 : 0);
+                cmd.Parameters.AddWithValue("@UserId", (object?)supplier.UserId ?? DBNull.Value);
 
                 int affected = await cmd.ExecuteNonQueryAsync();
                 return affected > 0;
             }
         }
 
-        public async Task<bool> DeleteSupplier(long supplierId)
+        public async Task<bool> DeleteSupplier(long supplierId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -154,8 +163,10 @@ namespace TestMVC.Repository
                 using var softCmd = new SqlCommand(@"
                     UPDATE dbo.Supplier 
                     SET IsDelete = 1, IsActive = 0 
-                    WHERE SupplierId = @Id;", connection);
+                    WHERE SupplierId = @Id
+                      AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
                 softCmd.Parameters.AddWithValue("@Id", supplierId);
+                softCmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
                 return await softCmd.ExecuteNonQueryAsync() > 0;
             }
             else
@@ -165,8 +176,10 @@ namespace TestMVC.Repository
                 {
                     using var hardCmd = new SqlCommand(@"
                         DELETE FROM dbo.Supplier 
-                        WHERE SupplierId = @Id;", connection);
+                        WHERE SupplierId = @Id
+                          AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
                     hardCmd.Parameters.AddWithValue("@Id", supplierId);
+                    hardCmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
                     return await hardCmd.ExecuteNonQueryAsync() > 0;
                 }
                 catch
@@ -175,14 +188,16 @@ namespace TestMVC.Repository
                     using var fallbackCmd = new SqlCommand(@"
                         UPDATE dbo.Supplier 
                         SET IsDelete = 1, IsActive = 0 
-                        WHERE SupplierId = @Id;", connection);
+                        WHERE SupplierId = @Id
+                          AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
                     fallbackCmd.Parameters.AddWithValue("@Id", supplierId);
+                    fallbackCmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
                     return await fallbackCmd.ExecuteNonQueryAsync() > 0;
                 }
             }
         }
 
-        public async Task<bool> ToggleStatus(long supplierId)
+        public async Task<bool> ToggleStatus(long supplierId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -190,22 +205,26 @@ namespace TestMVC.Repository
             using var cmd = new SqlCommand(@"
                 UPDATE dbo.Supplier 
                 SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END 
-                WHERE SupplierId = @Id;
+                WHERE SupplierId = @Id
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);
 
                 SELECT IsActive FROM dbo.Supplier WHERE SupplierId = @Id;", connection);
             cmd.Parameters.AddWithValue("@Id", supplierId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return res != null && Convert.ToBoolean(res);
         }
 
-        public async Task<int> GetSupplierCount()
+        public async Task<int> GetSupplierCount(int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
             using var cmd = new SqlCommand(@"
                 SELECT COUNT(1) FROM dbo.Supplier 
-                WHERE (CASE WHEN COL_LENGTH('dbo.Supplier', 'IsDelete') IS NOT NULL THEN ISNULL(IsDelete, 0) ELSE 0 END) = 0;", connection);
+                WHERE (CASE WHEN COL_LENGTH('dbo.Supplier', 'IsDelete') IS NOT NULL THEN ISNULL(IsDelete, 0) ELSE 0 END) = 0
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return res != null ? Convert.ToInt32(res) : 0;
         }

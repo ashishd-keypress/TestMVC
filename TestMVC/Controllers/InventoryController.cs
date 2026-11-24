@@ -20,16 +20,17 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search, byte? status, int? productId)
         {
-            var devices = await _deviceUnitService.GetDeviceUnits(search, status, productId);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var devices = await _deviceUnitService.GetDeviceUnits(search, status, productId, currentUserId);
             ViewBag.Search = search;
             ViewBag.SelectedStatus = status;
             ViewBag.SelectedProductId = productId;
 
-            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true });
+            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true, UserId = currentUserId });
             ViewBag.Products = products;
 
-            ViewBag.InStockCount = await _deviceUnitService.GetInStockDeviceCount();
-            ViewBag.TotalStockValue = await _deviceUnitService.GetTotalStockValue();
+            ViewBag.InStockCount = await _deviceUnitService.GetInStockDeviceCount(currentUserId);
+            ViewBag.TotalStockValue = await _deviceUnitService.GetTotalStockValue(currentUserId);
 
             return View(devices);
         }
@@ -38,7 +39,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Details(long id)
         {
-            var device = await _deviceUnitService.GetDeviceUnitById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var device = await _deviceUnitService.GetDeviceUnitById(id, currentUserId);
             if (device == null)
             {
                 TempData["Error"] = "Device record not found.";
@@ -75,7 +77,8 @@ namespace TestMVC.Controllers
                 return Json(new { success = false, message = "Please enter an IMEI number." });
             }
 
-            var device = await _deviceUnitService.GetDeviceByIMEI(imei);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var device = await _deviceUnitService.GetDeviceByIMEI(imei, currentUserId);
             if (device == null)
             {
                 return Json(new { success = false, message = $"IMEI '{imei}' not found in database." });

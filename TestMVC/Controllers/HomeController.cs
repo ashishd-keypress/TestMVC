@@ -34,13 +34,13 @@ namespace TestMVC.Controllers
             int? currentUserId = Utility.Helper.GetUserId(User);
             var (stats, _, _) = await _dashboardService.GetDashboardStats(currentUserId);
 
-            var inStockDevices = await _deviceUnitService.GetInStockDeviceCount();
-            var totalStockVal = await _deviceUnitService.GetTotalStockValue();
-            var todaySales = await _salesService.GetTodaySalesAmount();
-            var custCount = await _customerService.GetCustomerCount();
-            var suppCount = await _supplierService.GetSupplierCount();
-            var recentInvoices = await _salesService.GetRecentInvoices(5);
-            var recentDevices = await _deviceUnitService.GetDeviceUnits(status: 1);
+            var inStockDevices = await _deviceUnitService.GetInStockDeviceCount(currentUserId);
+            var totalStockVal = await _deviceUnitService.GetTotalStockValue(currentUserId);
+            var todaySales = await _salesService.GetTodaySalesAmount(currentUserId);
+            var custCount = await _customerService.GetCustomerCount(currentUserId);
+            var suppCount = await _supplierService.GetSupplierCount(currentUserId);
+            var recentInvoices = await _salesService.GetRecentInvoices(5, currentUserId);
+            var recentDevices = await _deviceUnitService.GetDeviceUnits(status: 1, userId: currentUserId);
 
             var viewModel = new DashboardViewModel
             {

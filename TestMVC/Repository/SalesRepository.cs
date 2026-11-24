@@ -20,7 +20,7 @@ namespace TestMVC.Repository
                 ?? throw new InvalidOperationException("DefaultConnection missing");
         }
 
-        public async Task<List<SalesInvoice>> GetInvoices(string? search = null)
+        public async Task<List<SalesInvoice>> GetInvoices(string? search = null, int? userId = null)
         {
             var list = new List<SalesInvoice>();
             using var connection = new SqlConnection(_connectionString);
@@ -43,22 +43,26 @@ namespace TestMVC.Repository
                     s.DueAmount,
                     s.Status,
                     s.Notes,
-                    s.CreatedDate
+                    s.CreatedDate,
+                    s.UserId,
+                    s.CreatedBy
                 FROM dbo.SalesInvoice s
                 LEFT JOIN dbo.Customer c ON s.CustomerId = c.CustomerId
-                WHERE (@Search IS NULL 
+                WHERE (@UserId IS NULL OR ISNULL(s.UserId, ISNULL(s.CreatedBy, 1)) = @UserId)
+                  AND (@Search IS NULL 
                        OR s.InvoiceNumber LIKE '%' + @Search + '%' 
                        OR c.CustomerName LIKE '%' + @Search + '%' 
                        OR c.Phone LIKE '%' + @Search + '%')
                 ORDER BY s.SalesInvoiceId DESC;", connection);
 
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Search", (object?)search ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<SalesInvoice>();
         }
 
-        public async Task<SalesInvoice?> GetInvoiceById(long invoiceId)
+        public async Task<SalesInvoice?> GetInvoiceById(long invoiceId, int? userId = null)
         {
             SalesInvoice? invoice = null;
             using var connection = new SqlConnection(_connectionString);
@@ -84,6 +88,8 @@ namespace TestMVC.Repository
                     s.Status,
                     s.Notes,
                     s.CreatedDate,
+                    s.UserId,
+                    s.CreatedBy,
                     ISNULL(sp.PaymentMethodId, 1) AS PaymentMethodId,
                     ISNULL(pm.MethodName, 'Cash') AS PaymentMethodName,
                     sp.TransactionReference
@@ -91,9 +97,11 @@ namespace TestMVC.Repository
                 LEFT JOIN dbo.Customer c ON s.CustomerId = c.CustomerId
                 LEFT JOIN dbo.SalesPayment sp ON s.SalesInvoiceId = sp.SalesInvoiceId
                 LEFT JOIN dbo.PaymentMethod pm ON sp.PaymentMethodId = pm.PaymentMethodId
-                WHERE s.SalesInvoiceId = @Id;", connection))
+                WHERE s.SalesInvoiceId = @Id
+                  AND (@UserId IS NULL OR ISNULL(s.UserId, ISNULL(s.CreatedBy, 1)) = @UserId);", connection))
             {
                 cmd.Parameters.AddWithValue("@Id", invoiceId);
+                cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
                 using var reader = await cmd.ExecuteReaderAsync();
                 invoice = reader.DataReaderMapToSingle<SalesInvoice>();
             }
@@ -150,11 +158,13 @@ namespace TestMVC.Repository
                 using var headerCmd = new SqlCommand(@"
                     INSERT INTO dbo.SalesInvoice (
                         BranchId, CustomerId, InvoiceNumber, InvoiceDate,
-                        SubTotal, Discount, TaxAmount, GrandTotal, PaidAmount, DueAmount, Status, Notes, CreatedDate
+                        SubTotal, Discount, TaxAmount, GrandTotal, PaidAmount, DueAmount, Status, Notes, CreatedDate,
+                        UserId, CreatedBy
                     )
                     VALUES (
                         @BranchId, @CustomerId, @InvoiceNumber, GETDATE(),
-                        @SubTotal, @Discount, @TaxAmount, @GrandTotal, @PaidAmount, @DueAmount, @Status, @Notes, GETDATE()
+                        @SubTotal, @Discount, @TaxAmount, @GrandTotal, @PaidAmount, @DueAmount, @Status, @Notes, GETDATE(),
+                        @UserId, @CreatedBy
                     );
                     SELECT SCOPE_IDENTITY();", connection, transaction);
 
@@ -169,6 +179,8 @@ namespace TestMVC.Repository
                 headerCmd.Parameters.AddWithValue("@DueAmount", invoice.DueAmount);
                 headerCmd.Parameters.AddWithValue("@Status", invoice.Status ?? "Completed");
                 headerCmd.Parameters.AddWithValue("@Notes", (object?)invoice.Notes ?? DBNull.Value);
+                headerCmd.Parameters.AddWithValue("@UserId", (object?)invoice.UserId ?? (invoice.CreatedBy.HasValue ? invoice.CreatedBy.Value : 1));
+                headerCmd.Parameters.AddWithValue("@CreatedBy", (object?)invoice.CreatedBy ?? (invoice.UserId.HasValue ? invoice.UserId.Value : 1));
 
                 var invIdObj = await headerCmd.ExecuteScalarAsync();
                 long invoiceId = Convert.ToInt64(invIdObj);
@@ -281,22 +293,25 @@ namespace TestMVC.Repository
             return reader.DataReaderMapToList<PaymentMethod>();
         }
 
-        public async Task<decimal> GetTodaySalesAmount()
+        public async Task<decimal> GetTodaySalesAmount(int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
             using var cmd = new SqlCommand(@"
                 SELECT ISNULL(SUM(GrandTotal), 0)
-                FROM dbo.SalesInvoice
+                FROM dbo.SalesInvoice s
                 WHERE CAST(InvoiceDate AS DATE) = CAST(GETDATE() AS DATE)
-                  AND Status != 'Cancelled';", connection);
+                  AND Status != 'Cancelled'
+                  AND (@UserId IS NULL OR ISNULL(s.UserId, ISNULL(s.CreatedBy, 1)) = @UserId);", connection);
+
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             var res = await cmd.ExecuteScalarAsync();
             return res != null && res != DBNull.Value ? Convert.ToDecimal(res) : 0;
         }
 
-        public async Task<List<SalesInvoice>> GetRecentInvoices(int count = 5)
+        public async Task<List<SalesInvoice>> GetRecentInvoices(int count = 5, int? userId = null)
         {
             var list = new List<SalesInvoice>();
             using var connection = new SqlConnection(_connectionString);
@@ -315,9 +330,11 @@ namespace TestMVC.Repository
                     ISNULL(c.Phone, '-') AS CustomerPhone
                 FROM dbo.SalesInvoice s
                 LEFT JOIN dbo.Customer c ON s.CustomerId = c.CustomerId
+                WHERE (@UserId IS NULL OR ISNULL(s.UserId, ISNULL(s.CreatedBy, 1)) = @UserId)
                 ORDER BY s.SalesInvoiceId DESC;", connection);
 
             cmd.Parameters.AddWithValue("@Count", count);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<SalesInvoice>();

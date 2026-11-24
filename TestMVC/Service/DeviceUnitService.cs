@@ -14,24 +14,24 @@ namespace TestMVC.Service
             _deviceUnitRepository = deviceUnitRepository;
         }
 
-        public Task<List<DeviceUnit>> GetDeviceUnits(string? search = null, byte? status = null, int? productId = null)
+        public Task<List<DeviceUnit>> GetDeviceUnits(string? search = null, byte? status = null, int? productId = null, int? userId = null)
         {
-            return _deviceUnitRepository.GetDeviceUnits(search, status, productId);
+            return _deviceUnitRepository.GetDeviceUnits(search, status, productId, userId);
         }
 
-        public Task<DeviceUnit?> GetDeviceUnitById(long deviceUnitId)
+        public Task<DeviceUnit?> GetDeviceUnitById(long deviceUnitId, int? userId = null)
         {
-            return _deviceUnitRepository.GetDeviceUnitById(deviceUnitId);
+            return _deviceUnitRepository.GetDeviceUnitById(deviceUnitId, userId);
         }
 
-        public Task<DeviceUnit?> GetDeviceByIMEI(string imei)
+        public Task<DeviceUnit?> GetDeviceByIMEI(string imei, int? userId = null)
         {
-            return _deviceUnitRepository.GetDeviceByIMEI(imei);
+            return _deviceUnitRepository.GetDeviceByIMEI(imei, userId);
         }
 
-        public Task<List<DeviceUnit>> GetAvailableDevicesForProduct(int productId)
+        public Task<List<DeviceUnit>> GetAvailableDevicesForProduct(int productId, int? userId = null)
         {
-            return _deviceUnitRepository.GetAvailableDevicesForProduct(productId);
+            return _deviceUnitRepository.GetAvailableDevicesForProduct(productId, userId);
         }
 
         public Task<bool> UpdateDeviceStatus(long deviceUnitId, byte status, string? notes = null)
@@ -39,14 +39,14 @@ namespace TestMVC.Service
             return _deviceUnitRepository.UpdateDeviceStatus(deviceUnitId, status, notes);
         }
 
-        public Task<int> GetInStockDeviceCount()
+        public Task<int> GetInStockDeviceCount(int? userId = null)
         {
-            return _deviceUnitRepository.GetInStockDeviceCount();
+            return _deviceUnitRepository.GetInStockDeviceCount(userId);
         }
 
-        public Task<decimal> GetTotalStockValue()
+        public Task<decimal> GetTotalStockValue(int? userId = null)
         {
-            return _deviceUnitRepository.GetTotalStockValue();
+            return _deviceUnitRepository.GetTotalStockValue(userId);
         }
     }
 }

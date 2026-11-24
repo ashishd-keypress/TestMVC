@@ -1,60 +1,40 @@
 using System;
-using System.Security.Cryptography;
+using BCrypt.Net;
 
 namespace Utility
 {
     public static class PasswordSecurity
     {
-        private const int SaltSize = 32;       // 256-bit salt
-        private const int KeySize = 64;        // 512-bit hash
-        private const int Iterations = 100000; // 100,000 PBKDF2 iterations
-        private static readonly HashAlgorithmName HashAlgorithm = HashAlgorithmName.SHA512;
+        // Work factor 12 produces standard $2a$12$... hashes with 4,096 key derivation rounds
+        private const int WorkFactor = 12;
 
         /// <summary>
-        /// Creates a cryptographically secure Salt and PBKDF2 SHA-512 Hash for the given password.
+        /// Hashes a plain-text password using BCrypt with workFactor 12.
+        /// Resulting hash format: $2a$12$... (includes algorithm, cost, salt, and hash in 60 chars).
         /// </summary>
-        public static void CreatePasswordHash(string password, out string passwordHash, out string passwordSalt)
+        public static string HashPassword(string password)
         {
             if (string.IsNullOrWhiteSpace(password))
             {
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            byte[] saltBytes = RandomNumberGenerator.GetBytes(SaltSize);
-            byte[] hashBytes = Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                saltBytes,
-                Iterations,
-                HashAlgorithm,
-                KeySize);
-
-            passwordSalt = Convert.ToBase64String(saltBytes);
-            passwordHash = Convert.ToBase64String(hashBytes);
+            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: WorkFactor);
         }
 
         /// <summary>
-        /// Verifies a password against the stored PBKDF2 SHA-512 hash and salt using constant-time comparison.
+        /// Verifies a plain-text password against a stored BCrypt hash.
         /// </summary>
-        public static bool VerifyPasswordHash(string password, string storedHash, string storedSalt)
+        public static bool VerifyPassword(string password, string storedHash)
         {
-            if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash) || string.IsNullOrWhiteSpace(storedSalt))
+            if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash))
             {
                 return false;
             }
 
             try
             {
-                byte[] saltBytes = Convert.FromBase64String(storedSalt);
-                byte[] storedHashBytes = Convert.FromBase64String(storedHash);
-
-                byte[] computedHashBytes = Rfc2898DeriveBytes.Pbkdf2(
-                    password,
-                    saltBytes,
-                    Iterations,
-                    HashAlgorithm,
-                    KeySize);
-
-                return CryptographicOperations.FixedTimeEquals(computedHashBytes, storedHashBytes);
+                return BCrypt.Net.BCrypt.Verify(password, storedHash);
             }
             catch
             {

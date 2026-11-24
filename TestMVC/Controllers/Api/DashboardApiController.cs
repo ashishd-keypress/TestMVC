@@ -37,7 +37,8 @@ namespace TestMVC.Controllers.Api
 
             try
             {
-                (response, TotalRecords, StrDBError) = await _dashboardService.GetDashboardStats();
+                int? currentUserId = Helper.GetUserId(User);
+                (response, TotalRecords, StrDBError) = await _dashboardService.GetDashboardStats(currentUserId);
 
                 if (!string.IsNullOrEmpty(StrDBError))
                 {

@@ -20,7 +20,7 @@ namespace TestMVC.Repository
                 ?? throw new InvalidOperationException("DefaultConnection missing");
         }
 
-        public async Task<List<Expense>> GetExpenses(string? search = null)
+        public async Task<List<Expense>> GetExpenses(string? search = null, int? userId = null)
         {
             var list = new List<Expense>();
             using var connection = new SqlConnection(_connectionString);
@@ -37,22 +37,26 @@ namespace TestMVC.Repository
                     e.Description,
                     e.PaymentMethodId,
                     pm.MethodName AS PaymentMethodName,
+                    e.UserId,
+                    e.CreatedBy,
                     e.CreatedDate
                 FROM dbo.Expense e
                 LEFT JOIN dbo.ExpenseCategory ec ON e.ExpenseCategoryId = ec.ExpenseCategoryId
                 LEFT JOIN dbo.PaymentMethod pm ON e.PaymentMethodId = pm.PaymentMethodId
-                WHERE (@Search IS NULL 
+                WHERE (@UserId IS NULL OR ISNULL(e.UserId, ISNULL(e.CreatedBy, 1)) = @UserId)
+                  AND (@Search IS NULL 
                        OR e.Description LIKE '%' + @Search + '%' 
                        OR ec.CategoryName LIKE '%' + @Search + '%')
                 ORDER BY e.ExpenseDate DESC, e.ExpenseId DESC;", connection);
 
             cmd.Parameters.AddWithValue("@Search", (object?)search ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<Expense>();
         }
 
-        public async Task<Expense?> GetExpenseById(long expenseId)
+        public async Task<Expense?> GetExpenseById(long expenseId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -68,13 +72,17 @@ namespace TestMVC.Repository
                     e.Description,
                     e.PaymentMethodId,
                     pm.MethodName AS PaymentMethodName,
+                    e.UserId,
+                    e.CreatedBy,
                     e.CreatedDate
                 FROM dbo.Expense e
                 LEFT JOIN dbo.ExpenseCategory ec ON e.ExpenseCategoryId = ec.ExpenseCategoryId
                 LEFT JOIN dbo.PaymentMethod pm ON e.PaymentMethodId = pm.PaymentMethodId
-                WHERE e.ExpenseId = @Id;", connection);
+                WHERE e.ExpenseId = @Id
+                  AND (@UserId IS NULL OR ISNULL(e.UserId, ISNULL(e.CreatedBy, 1)) = @UserId);", connection);
 
             cmd.Parameters.AddWithValue("@Id", expenseId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToSingle<Expense>();
@@ -88,8 +96,8 @@ namespace TestMVC.Repository
             if (expense.ExpenseId <= 0)
             {
                 using var cmd = new SqlCommand(@"
-                    INSERT INTO dbo.Expense (ExpenseCategoryId, BranchId, ExpenseDate, Amount, Description, PaymentMethodId, CreatedDate)
-                    VALUES (@ExpenseCategoryId, @BranchId, @ExpenseDate, @Amount, @Description, @PaymentMethodId, GETDATE());
+                    INSERT INTO dbo.Expense (ExpenseCategoryId, BranchId, ExpenseDate, Amount, Description, PaymentMethodId, UserId, CreatedBy, CreatedDate)
+                    VALUES (@ExpenseCategoryId, @BranchId, @ExpenseDate, @Amount, @Description, @PaymentMethodId, @UserId, @UserId, GETDATE());
                     SELECT SCOPE_IDENTITY();", connection);
 
                 cmd.Parameters.AddWithValue("@ExpenseCategoryId", expense.ExpenseCategoryId);
@@ -98,6 +106,7 @@ namespace TestMVC.Repository
                 cmd.Parameters.AddWithValue("@Amount", expense.Amount);
                 cmd.Parameters.AddWithValue("@Description", expense.Description);
                 cmd.Parameters.AddWithValue("@PaymentMethodId", (object?)expense.PaymentMethodId ?? 1);
+                cmd.Parameters.AddWithValue("@UserId", (object?)expense.UserId ?? 1);
 
                 var res = await cmd.ExecuteScalarAsync();
                 return res != null && Convert.ToInt64(res) > 0;
@@ -111,7 +120,8 @@ namespace TestMVC.Repository
                         Amount = @Amount,
                         Description = @Description,
                         PaymentMethodId = @PaymentMethodId
-                    WHERE ExpenseId = @Id;", connection);
+                    WHERE ExpenseId = @Id
+                      AND (@UserId IS NULL OR ISNULL(UserId, @UserId) = @UserId);", connection);
 
                 cmd.Parameters.AddWithValue("@Id", expense.ExpenseId);
                 cmd.Parameters.AddWithValue("@ExpenseCategoryId", expense.ExpenseCategoryId);
@@ -119,19 +129,24 @@ namespace TestMVC.Repository
                 cmd.Parameters.AddWithValue("@Amount", expense.Amount);
                 cmd.Parameters.AddWithValue("@Description", expense.Description);
                 cmd.Parameters.AddWithValue("@PaymentMethodId", (object?)expense.PaymentMethodId ?? 1);
+                cmd.Parameters.AddWithValue("@UserId", (object?)expense.UserId ?? DBNull.Value);
 
                 int affected = await cmd.ExecuteNonQueryAsync();
                 return affected > 0;
             }
         }
 
-        public async Task<bool> DeleteExpense(long expenseId)
+        public async Task<bool> DeleteExpense(long expenseId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            using var cmd = new SqlCommand(@"DELETE FROM dbo.Expense WHERE ExpenseId = @Id;", connection);
+            using var cmd = new SqlCommand(@"
+                DELETE FROM dbo.Expense 
+                WHERE ExpenseId = @Id
+                  AND (@UserId IS NULL OR ISNULL(UserId, ISNULL(CreatedBy, 1)) = @UserId);", connection);
             cmd.Parameters.AddWithValue("@Id", expenseId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 

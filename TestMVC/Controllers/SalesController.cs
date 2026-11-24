@@ -31,9 +31,10 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search)
         {
-            var invoices = await _salesService.GetInvoices(search);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var invoices = await _salesService.GetInvoices(search, currentUserId);
             ViewBag.Search = search;
-            ViewBag.TodaySales = await _salesService.GetTodaySalesAmount();
+            ViewBag.TodaySales = await _salesService.GetTodaySalesAmount(currentUserId);
             return View(invoices);
         }
 
@@ -41,7 +42,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            await LoadDropdownsAsync();
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            await LoadDropdownsAsync(currentUserId: currentUserId);
             var model = new SalesInvoice
             {
                 InvoiceNumber = $"INV-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
@@ -55,6 +57,8 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(SalesInvoice invoice, string? itemsJson)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+
             if (!string.IsNullOrWhiteSpace(itemsJson))
             {
                 try
@@ -74,12 +78,15 @@ namespace TestMVC.Controllers
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdownsAsync(invoice.CustomerId, invoice.PaymentMethodId);
+                await LoadDropdownsAsync(invoice.CustomerId, invoice.PaymentMethodId, currentUserId);
                 return View(invoice);
             }
 
             try
             {
+                invoice.UserId = currentUserId;
+                invoice.CreatedBy = currentUserId;
+
                 long id = await _salesService.CreateSalesInvoice(invoice);
                 if (id > 0)
                 {
@@ -94,7 +101,7 @@ namespace TestMVC.Controllers
                 ModelState.AddModelError(string.Empty, $"Error generating invoice: {ex.Message}");
             }
 
-            await LoadDropdownsAsync(invoice.CustomerId, invoice.PaymentMethodId);
+            await LoadDropdownsAsync(invoice.CustomerId, invoice.PaymentMethodId, currentUserId);
             return View(invoice);
         }
 
@@ -102,7 +109,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Invoice(long id)
         {
-            var invoice = await _salesService.GetInvoiceById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var invoice = await _salesService.GetInvoiceById(id, currentUserId);
             if (invoice == null)
             {
                 TempData["Error"] = "Invoice not found.";
@@ -112,11 +120,12 @@ namespace TestMVC.Controllers
             return View(invoice);
         }
 
-        private async Task LoadDropdownsAsync(long? selectedCustomer = null, int? selectedPaymentMethod = null)
+        private async Task LoadDropdownsAsync(long? selectedCustomer = null, int? selectedPaymentMethod = null, int? currentUserId = null)
         {
-            var customers = await _customerService.GetCustomers();
+            currentUserId ??= Utility.Helper.GetUserId(User);
+            var customers = await _customerService.GetCustomers(userId: currentUserId);
             var paymentMethods = await _salesService.GetPaymentMethods();
-            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true });
+            var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true, UserId = currentUserId });
 
             ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", selectedCustomer);
             ViewBag.PaymentMethods = new SelectList(paymentMethods, "PaymentMethodId", "MethodName", selectedPaymentMethod ?? 1);

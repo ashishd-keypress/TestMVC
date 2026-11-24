@@ -43,13 +43,12 @@ namespace TestMVC.Repository
                 {
                     await connection.OpenAsync();
 
-                    string? storedHash = null;
-                    string? storedSalt = null;
+                    string? storedPassword = null;
                     int userId = 0;
                     string mobile = string.Empty;
 
                     using (var cmd = new SqlCommand(@"
-                        SELECT UserId, Username, PasswordHash, PasswordSalt, MobileNumber 
+                        SELECT UserId, Username, UserPassword, MobileNumber 
                         FROM dbo.Users 
                         WHERE LOWER(Username) = LOWER(@Username) AND IsDelete = 0;", connection))
                     {
@@ -60,21 +59,20 @@ namespace TestMVC.Repository
                         {
                             userId = reader.GetInt32(0);
                             res.Username = reader.GetString(1);
-                            storedHash = reader.GetString(2);
-                            storedSalt = reader.GetString(3);
-                            mobile = reader.GetString(4);
+                            storedPassword = reader.GetString(2);
+                            mobile = reader.GetString(3);
                         }
                     }
 
-                    if (userId == 0 || string.IsNullOrEmpty(storedHash) || string.IsNullOrEmpty(storedSalt))
+                    if (userId == 0 || string.IsNullOrEmpty(storedPassword))
                     {
                         res.Success = false;
                         res.Message = "Invalid username or password.";
                         return new Tuple<LoginRes, int, string>(res, 0, strDBError);
                     }
 
-                    // Secure password verification
-                    bool isValidPassword = PasswordSecurity.VerifyPasswordHash(model.Password, storedHash, storedSalt);
+                    // Secure BCrypt password verification
+                    bool isValidPassword = PasswordSecurity.VerifyPassword(model.Password, storedPassword);
                     if (!isValidPassword)
                     {
                         res.Success = false;

@@ -20,7 +20,7 @@ namespace TestMVC.Repository
                 ?? throw new InvalidOperationException("DefaultConnection is missing in appsettings.json");
         }
 
-        public async Task<List<DeviceUnit>> GetDeviceUnits(string? search = null, byte? status = null, int? productId = null)
+        public async Task<List<DeviceUnit>> GetDeviceUnits(string? search = null, byte? status = null, int? productId = null, int? userId = null)
         {
             var list = new List<DeviceUnit>();
             using var connection = new SqlConnection(_connectionString);
@@ -54,7 +54,8 @@ namespace TestMVC.Repository
                 LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
                 LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                 LEFT JOIN dbo.Warehouse w ON du.WarehouseId = w.WarehouseId
-                WHERE (@Status IS NULL OR du.CurrentStatus = @Status)
+                WHERE (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId)
+                  AND (@Status IS NULL OR du.CurrentStatus = @Status)
                   AND (@ProductId IS NULL OR du.ProductId = @ProductId)
                   AND (
                         @Search IS NULL 
@@ -66,6 +67,7 @@ namespace TestMVC.Repository
                   )
                 ORDER BY du.DeviceUnitId DESC;", connection);
 
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Status", (object?)status ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@ProductId", (object?)productId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Search", (object?)search ?? DBNull.Value);
@@ -75,7 +77,7 @@ namespace TestMVC.Repository
             return list;
         }
 
-        public async Task<DeviceUnit?> GetDeviceUnitById(long deviceUnitId)
+        public async Task<DeviceUnit?> GetDeviceUnitById(long deviceUnitId, int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -108,15 +110,17 @@ namespace TestMVC.Repository
                 LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
                 LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                 LEFT JOIN dbo.Warehouse w ON du.WarehouseId = w.WarehouseId
-                WHERE du.DeviceUnitId = @Id;", connection);
+                WHERE du.DeviceUnitId = @Id
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId);", connection);
 
             cmd.Parameters.AddWithValue("@Id", deviceUnitId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToSingle<DeviceUnit>();
         }
 
-        public async Task<DeviceUnit?> GetDeviceByIMEI(string imei)
+        public async Task<DeviceUnit?> GetDeviceByIMEI(string imei, int? userId = null)
         {
             if (string.IsNullOrWhiteSpace(imei)) return null;
 
@@ -151,15 +155,17 @@ namespace TestMVC.Repository
                 LEFT JOIN dbo.Brand b ON p.BrandId = b.BrandId
                 LEFT JOIN dbo.Category c ON p.CategoryId = c.CategoryId
                 LEFT JOIN dbo.Warehouse w ON du.WarehouseId = w.WarehouseId
-                WHERE du.IMEI1 = @IMEI OR du.IMEI2 = @IMEI OR du.SerialNumber = @IMEI;", connection);
+                WHERE (du.IMEI1 = @IMEI OR du.IMEI2 = @IMEI OR du.SerialNumber = @IMEI)
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId);", connection);
 
             cmd.Parameters.AddWithValue("@IMEI", imei.Trim());
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToSingle<DeviceUnit>();
         }
 
-        public async Task<List<DeviceUnit>> GetAvailableDevicesForProduct(int productId)
+        public async Task<List<DeviceUnit>> GetAvailableDevicesForProduct(int productId, int? userId = null)
         {
             var list = new List<DeviceUnit>();
             using var connection = new SqlConnection(_connectionString);
@@ -181,9 +187,11 @@ namespace TestMVC.Repository
                 FROM dbo.DeviceUnit du
                 JOIN dbo.Product p ON du.ProductId = p.ProductId
                 WHERE du.ProductId = @ProductId AND du.CurrentStatus = 1
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId)
                 ORDER BY du.DeviceUnitId ASC;", connection);
 
             cmd.Parameters.AddWithValue("@ProductId", productId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<DeviceUnit>();
@@ -208,17 +216,25 @@ namespace TestMVC.Repository
             return rows > 0;
         }
 
-        public async Task<int> GetInStockDeviceCount()
+        public async Task<int> GetInStockDeviceCount(int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            using var cmd = new SqlCommand("SELECT COUNT(1) FROM dbo.DeviceUnit WHERE CurrentStatus = 1;", connection);
+            using var cmd = new SqlCommand(@"
+                SELECT COUNT(1) 
+                FROM dbo.DeviceUnit du
+                JOIN dbo.Product p ON du.ProductId = p.ProductId
+                WHERE du.CurrentStatus = 1
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId);", connection);
+
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
+
             var res = await cmd.ExecuteScalarAsync();
             return res != null ? Convert.ToInt32(res) : 0;
         }
 
-        public async Task<decimal> GetTotalStockValue()
+        public async Task<decimal> GetTotalStockValue(int? userId = null)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -227,7 +243,10 @@ namespace TestMVC.Repository
                 SELECT ISNULL(SUM(ISNULL(du.CostPrice, CAST(p.Price AS DECIMAL(18,2)))), 0)
                 FROM dbo.DeviceUnit du
                 JOIN dbo.Product p ON du.ProductId = p.ProductId
-                WHERE du.CurrentStatus = 1;", connection);
+                WHERE du.CurrentStatus = 1
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBY, 1)) = @UserId);", connection);
+
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             var res = await cmd.ExecuteScalarAsync();
             return res != null && res != DBNull.Value ? Convert.ToDecimal(res) : 0;

@@ -49,6 +49,10 @@ namespace TestMVC.Models
 
         public string? Notes { get; set; }
 
+        public int? UserId { get; set; }
+
+        public int? CreatedBy { get; set; }
+
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
         public List<PurchaseItem> Items { get; set; } = new List<PurchaseItem>();

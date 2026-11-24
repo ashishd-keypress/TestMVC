@@ -20,7 +20,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search)
         {
-            var suppliers = await _supplierService.GetSuppliers(search);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var suppliers = await _supplierService.GetSuppliers(search, currentUserId);
             ViewBag.Search = search;
             return View(suppliers);
         }
@@ -37,6 +38,9 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Supplier supplier)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            supplier.UserId = currentUserId;
+
             if (!string.IsNullOrWhiteSpace(supplier.Phone))
             {
                 supplier.Phone = Regex.Replace(supplier.Phone, @"[^0-9]", "");
@@ -67,7 +71,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(long id)
         {
-            var supplier = await _supplierService.GetSupplierById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var supplier = await _supplierService.GetSupplierById(id, currentUserId);
             if (supplier == null)
             {
                 TempData["Error"] = "Supplier not found.";
@@ -83,6 +88,9 @@ namespace TestMVC.Controllers
         public async Task<IActionResult> Edit(long id, Supplier supplier)
         {
             if (id != supplier.SupplierId) return BadRequest();
+
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            supplier.UserId = currentUserId;
 
             if (!string.IsNullOrWhiteSpace(supplier.Phone))
             {
@@ -118,7 +126,8 @@ namespace TestMVC.Controllers
             long targetId = id > 0 ? id : (supplierId ?? 0);
             if (targetId <= 0) return Json(new { success = false, message = "Invalid supplier identifier." });
 
-            var success = await _supplierService.DeleteSupplier(targetId);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var success = await _supplierService.DeleteSupplier(targetId, currentUserId);
             bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                           Request.Headers.Accept.ToString().Contains("application/json") ||
                           Request.ContentType?.Contains("application/json") == true ||
@@ -146,7 +155,8 @@ namespace TestMVC.Controllers
             long targetId = id > 0 ? id : (supplierId ?? 0);
             if (targetId <= 0) return Json(new { success = false, message = "Invalid supplier identifier." });
 
-            var newStatus = await _supplierService.ToggleStatus(targetId);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var newStatus = await _supplierService.ToggleStatus(targetId, currentUserId);
             return Json(new { 
                 success = true, 
                 isActive = newStatus, 

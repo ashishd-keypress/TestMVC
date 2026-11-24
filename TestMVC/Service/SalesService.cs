@@ -14,14 +14,14 @@ namespace TestMVC.Service
             _salesRepository = salesRepository;
         }
 
-        public Task<List<SalesInvoice>> GetInvoices(string? search = null)
+        public Task<List<SalesInvoice>> GetInvoices(string? search = null, int? userId = null)
         {
-            return _salesRepository.GetInvoices(search);
+            return _salesRepository.GetInvoices(search, userId);
         }
 
-        public Task<SalesInvoice?> GetInvoiceById(long invoiceId)
+        public Task<SalesInvoice?> GetInvoiceById(long invoiceId, int? userId = null)
         {
-            return _salesRepository.GetInvoiceById(invoiceId);
+            return _salesRepository.GetInvoiceById(invoiceId, userId);
         }
 
         public Task<long> CreateSalesInvoice(SalesInvoice invoice)
@@ -34,14 +34,14 @@ namespace TestMVC.Service
             return _salesRepository.GetPaymentMethods();
         }
 
-        public Task<decimal> GetTodaySalesAmount()
+        public Task<decimal> GetTodaySalesAmount(int? userId = null)
         {
-            return _salesRepository.GetTodaySalesAmount();
+            return _salesRepository.GetTodaySalesAmount(userId);
         }
 
-        public Task<List<SalesInvoice>> GetRecentInvoices(int count = 5)
+        public Task<List<SalesInvoice>> GetRecentInvoices(int count = 5, int? userId = null)
         {
-            return _salesRepository.GetRecentInvoices(count);
+            return _salesRepository.GetRecentInvoices(count, userId);
         }
     }
 }

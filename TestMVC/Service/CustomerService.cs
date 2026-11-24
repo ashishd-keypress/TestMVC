@@ -14,19 +14,19 @@ namespace TestMVC.Service
             _customerRepository = customerRepository;
         }
 
-        public Task<List<Customer>> GetCustomers(string? search = null)
+        public Task<List<Customer>> GetCustomers(string? search = null, int? userId = null)
         {
-            return _customerRepository.GetCustomers(search);
+            return _customerRepository.GetCustomers(search, userId);
         }
 
-        public Task<Customer?> GetCustomerById(long customerId)
+        public Task<Customer?> GetCustomerById(long customerId, int? userId = null)
         {
-            return _customerRepository.GetCustomerById(customerId);
+            return _customerRepository.GetCustomerById(customerId, userId);
         }
 
-        public Task<Customer?> GetCustomerByPhone(string phone)
+        public Task<Customer?> GetCustomerByPhone(string phone, int? userId = null)
         {
-            return _customerRepository.GetCustomerByPhone(phone);
+            return _customerRepository.GetCustomerByPhone(phone, userId);
         }
 
         public Task<long> SaveCustomer(Customer customer)
@@ -34,19 +34,19 @@ namespace TestMVC.Service
             return _customerRepository.SaveCustomer(customer);
         }
 
-        public Task<bool> DeleteCustomer(long customerId)
+        public Task<bool> DeleteCustomer(long customerId, int? userId = null)
         {
-            return _customerRepository.DeleteCustomer(customerId);
+            return _customerRepository.DeleteCustomer(customerId, userId);
         }
 
-        public Task<bool> ToggleStatus(long customerId)
+        public Task<bool> ToggleStatus(long customerId, int? userId = null)
         {
-            return _customerRepository.ToggleStatus(customerId);
+            return _customerRepository.ToggleStatus(customerId, userId);
         }
 
-        public Task<int> GetCustomerCount()
+        public Task<int> GetCustomerCount(int? userId = null)
         {
-            return _customerRepository.GetCustomerCount();
+            return _customerRepository.GetCustomerCount(userId);
         }
     }
 }

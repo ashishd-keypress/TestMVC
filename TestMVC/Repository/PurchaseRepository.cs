@@ -21,7 +21,7 @@ namespace TestMVC.Repository
                 ?? throw new InvalidOperationException("DefaultConnection missing");
         }
 
-        public async Task<List<Purchase>> GetPurchases(string? search = null)
+        public async Task<List<Purchase>> GetPurchases(string? search = null, int? userId = null)
         {
             var list = new List<Purchase>();
             using var connection = new SqlConnection(_connectionString);
@@ -44,22 +44,26 @@ namespace TestMVC.Repository
                     p.DueAmount,
                     p.Status,
                     p.Notes,
+                    p.UserId,
+                    p.CreatedBy,
                     p.CreatedDate
                 FROM dbo.Purchase p
                 LEFT JOIN dbo.Supplier s ON p.SupplierId = s.SupplierId
-                WHERE (@Search IS NULL 
+                WHERE (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBy, 1)) = @UserId)
+                  AND (@Search IS NULL 
                        OR p.InvoiceNumber LIKE '%' + @Search + '%' 
                        OR s.SupplierName LIKE '%' + @Search + '%'
                        OR s.Phone LIKE '%' + @Search + '%')
                 ORDER BY p.PurchaseId DESC;", connection);
 
             cmd.Parameters.AddWithValue("@Search", (object?)search ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
             return reader.DataReaderMapToList<Purchase>();
         }
 
-        public async Task<Purchase?> GetPurchaseById(long purchaseId)
+        public async Task<Purchase?> GetPurchaseById(long purchaseId, int? userId = null)
         {
             Purchase? purchase = null;
             using var connection = new SqlConnection(_connectionString);
@@ -82,12 +86,16 @@ namespace TestMVC.Repository
                     p.DueAmount,
                     p.Status,
                     p.Notes,
+                    p.UserId,
+                    p.CreatedBy,
                     p.CreatedDate
                 FROM dbo.Purchase p
                 LEFT JOIN dbo.Supplier s ON p.SupplierId = s.SupplierId
-                WHERE p.PurchaseId = @Id;", connection))
+                WHERE p.PurchaseId = @Id
+                  AND (@UserId IS NULL OR ISNULL(p.UserId, ISNULL(p.CreatedBy, 1)) = @UserId);", connection))
             {
                 cmd.Parameters.AddWithValue("@Id", purchaseId);
+                cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
                 using var reader = await cmd.ExecuteReaderAsync();
                 purchase = reader.DataReaderMapToSingle<Purchase>();
             }
@@ -130,11 +138,11 @@ namespace TestMVC.Repository
                 using var headerCmd = new SqlCommand(@"
                     INSERT INTO dbo.Purchase (
                         SupplierId, BranchId, InvoiceNumber, PurchaseDate, 
-                        SubTotal, Discount, TaxAmount, GrandTotal, PaidAmount, DueAmount, Status, Notes, CreatedDate
+                        SubTotal, Discount, TaxAmount, GrandTotal, PaidAmount, DueAmount, Status, Notes, UserId, CreatedBy, CreatedDate
                     )
                     VALUES (
                         @SupplierId, @BranchId, @InvoiceNumber, @PurchaseDate, 
-                        @SubTotal, @Discount, @TaxAmount, @GrandTotal, @PaidAmount, @DueAmount, @Status, @Notes, GETDATE()
+                        @SubTotal, @Discount, @TaxAmount, @GrandTotal, @PaidAmount, @DueAmount, @Status, @Notes, @UserId, @UserId, GETDATE()
                     );
                     SELECT SCOPE_IDENTITY();", connection, transaction);
 
@@ -150,6 +158,7 @@ namespace TestMVC.Repository
                 headerCmd.Parameters.AddWithValue("@DueAmount", purchase.DueAmount);
                 headerCmd.Parameters.AddWithValue("@Status", purchase.Status ?? "Received");
                 headerCmd.Parameters.AddWithValue("@Notes", (object?)purchase.Notes ?? DBNull.Value);
+                headerCmd.Parameters.AddWithValue("@UserId", (object?)purchase.UserId ?? 1);
 
                 var purchaseIdObj = await headerCmd.ExecuteScalarAsync();
                 long purchaseId = Convert.ToInt64(purchaseIdObj);

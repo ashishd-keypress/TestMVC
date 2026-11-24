@@ -6,22 +6,22 @@ namespace TestMVC.Interface
 {
     public interface ISalesRepository
     {
-        Task<List<SalesInvoice>> GetInvoices(string? search = null);
-        Task<SalesInvoice?> GetInvoiceById(long invoiceId);
+        Task<List<SalesInvoice>> GetInvoices(string? search = null, int? userId = null);
+        Task<SalesInvoice?> GetInvoiceById(long invoiceId, int? userId = null);
         Task<long> CreateSalesInvoice(SalesInvoice invoice);
         Task<List<PaymentMethod>> GetPaymentMethods();
-        Task<decimal> GetTodaySalesAmount();
-        Task<List<SalesInvoice>> GetRecentInvoices(int count = 5);
+        Task<decimal> GetTodaySalesAmount(int? userId = null);
+        Task<List<SalesInvoice>> GetRecentInvoices(int count = 5, int? userId = null);
     }
 
     public interface ISalesService
     {
-        Task<List<SalesInvoice>> GetInvoices(string? search = null);
-        Task<SalesInvoice?> GetInvoiceById(long invoiceId);
+        Task<List<SalesInvoice>> GetInvoices(string? search = null, int? userId = null);
+        Task<SalesInvoice?> GetInvoiceById(long invoiceId, int? userId = null);
         Task<long> CreateSalesInvoice(SalesInvoice invoice);
         Task<List<PaymentMethod>> GetPaymentMethods();
-        Task<decimal> GetTodaySalesAmount();
-        Task<List<SalesInvoice>> GetRecentInvoices(int count = 5);
+        Task<decimal> GetTodaySalesAmount(int? userId = null);
+        Task<List<SalesInvoice>> GetRecentInvoices(int count = 5, int? userId = null);
     }
 
     public class PaymentMethod

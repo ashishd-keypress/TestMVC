@@ -21,15 +21,14 @@ namespace Utility
                     using var connection = new SqlConnection(connectionString);
                     connection.Open();
 
-                    // 1. Ensure Users table exists (WITHOUT IsApproved)
+                    // 1. Ensure Users table exists (WITHOUT IsApproved, with UserPassword)
                     using (var cmd = new SqlCommand(@"
                         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
                         BEGIN
                             CREATE TABLE dbo.Users (
                                 UserId INT IDENTITY(1,1) PRIMARY KEY,
                                 Username NVARCHAR(100) NOT NULL UNIQUE,
-                                PasswordHash NVARCHAR(500) NOT NULL,
-                                PasswordSalt NVARCHAR(200) NOT NULL,
+                                UserPassword NVARCHAR(255) NOT NULL,
                                 MobileNumber NVARCHAR(20) NOT NULL,
                                 IsDelete BIT NOT NULL DEFAULT 0,
                                 CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
@@ -61,15 +60,65 @@ namespace Utility
                         cmd.ExecuteNonQuery();
                     }
 
-                    // 3. Seed / Ensure Admin User: Ashish@123 with Password: xyz@123
-                    PasswordSecurity.CreatePasswordHash("xyz@123", out string hash, out string salt);
+                    // 2b. Migrate to single UserPassword column and remove legacy PasswordHash / PasswordSalt
+                    using (var cmd = new SqlCommand(@"
+                        -- Ensure UserPassword column exists
+                        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'UserPassword')
+                        BEGIN
+                            ALTER TABLE dbo.Users ADD UserPassword NVARCHAR(255) NULL;
+                        END
+
+                        -- Migrate existing BCrypt password hashes from PasswordHash if present
+                        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'PasswordHash')
+                        BEGIN
+                            EXEC('UPDATE dbo.Users SET UserPassword = PasswordHash WHERE (UserPassword IS NULL OR UserPassword = '''') AND (PasswordHash LIKE ''$2a$%'' OR PasswordHash LIKE ''$2b$%'' OR PasswordHash LIKE ''$2y$%'')');
+                        END
+
+                        -- Drop legacy PasswordHash column and any default constraint
+                        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'PasswordHash')
+                        BEGIN
+                            DECLARE @hashConstraint NVARCHAR(200);
+                            SELECT @hashConstraint = d.name
+                            FROM sys.default_constraints d
+                            JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+                            WHERE d.parent_object_id = OBJECT_ID('dbo.Users') AND c.name = 'PasswordHash';
+
+                            IF @hashConstraint IS NOT NULL
+                            BEGIN
+                                EXEC('ALTER TABLE dbo.Users DROP CONSTRAINT ' + @hashConstraint);
+                            END
+
+                            ALTER TABLE dbo.Users DROP COLUMN PasswordHash;
+                        END
+
+                        -- Drop legacy PasswordSalt column and any default constraint
+                        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'PasswordSalt')
+                        BEGIN
+                            DECLARE @saltConstraint NVARCHAR(200);
+                            SELECT @saltConstraint = d.name
+                            FROM sys.default_constraints d
+                            JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+                            WHERE d.parent_object_id = OBJECT_ID('dbo.Users') AND c.name = 'PasswordSalt';
+
+                            IF @saltConstraint IS NOT NULL
+                            BEGIN
+                                EXEC('ALTER TABLE dbo.Users DROP CONSTRAINT ' + @saltConstraint);
+                            END
+
+                            ALTER TABLE dbo.Users DROP COLUMN PasswordSalt;
+                        END;", connection))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 3. Seed / Ensure Admin User: Ashish@123 with Password: xyz@123 using BCrypt
+                    string adminPasswordHash = PasswordSecurity.HashPassword("xyz@123");
 
                     using (var cmd = new SqlCommand(@"
                         IF EXISTS (SELECT 1 FROM dbo.Users WHERE LOWER(Username) = 'ashish@123')
                         BEGIN
                             UPDATE dbo.Users 
-                            SET PasswordHash = @PasswordHash, 
-                                PasswordSalt = @PasswordSalt,
+                            SET UserPassword = @UserPassword, 
                                 IsDelete = 0
                             WHERE LOWER(Username) = 'ashish@123';
                         END
@@ -78,19 +127,21 @@ namespace Utility
                             -- Update user 1 to Ashish@123 so that existing brands/products/categories (owned by UserId 1) are retained
                             UPDATE dbo.Users
                             SET Username = 'Ashish@123',
-                                PasswordHash = @PasswordHash,
-                                PasswordSalt = @PasswordSalt,
+                                UserPassword = @UserPassword,
                                 IsDelete = 0
                             WHERE UserId = 1;
                         END
                         ELSE
                         BEGIN
-                            INSERT INTO dbo.Users (Username, PasswordHash, PasswordSalt, MobileNumber, IsDelete, CreatedDate)
-                            VALUES ('Ashish@123', @PasswordHash, @PasswordSalt, '9876543210', 0, GETDATE());
-                        END;", connection))
+                            INSERT INTO dbo.Users (Username, UserPassword, MobileNumber, IsDelete, CreatedDate)
+                            VALUES ('Ashish@123', @UserPassword, '9876543210', 0, GETDATE());
+                        END;
+
+                        -- Ensure any remaining NULL values are initialized and enforce NOT NULL
+                        UPDATE dbo.Users SET UserPassword = @UserPassword WHERE UserPassword IS NULL;
+                        ALTER TABLE dbo.Users ALTER COLUMN UserPassword NVARCHAR(255) NOT NULL;", connection))
                     {
-                        cmd.Parameters.AddWithValue("@PasswordHash", hash);
-                        cmd.Parameters.AddWithValue("@PasswordSalt", salt);
+                        cmd.Parameters.AddWithValue("@UserPassword", adminPasswordHash);
                         cmd.ExecuteNonQuery();
                     }
 
@@ -205,6 +256,52 @@ namespace Utility
                         BEGIN
                             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Expense') AND name = 'CreatedDate')
                                 ALTER TABLE dbo.Expense ADD CreatedDate DATETIME2 NOT NULL CONSTRAINT DF_Expense_CreatedDate DEFAULT SYSUTCDATETIME();
+                        END;
+
+                        -- 9. Multi-Tenant User Isolation: Ensure UserId columns exist across all entity tables
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Customer')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Customer') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.Customer ADD UserId INT NULL;
+                                EXEC('UPDATE dbo.Customer SET UserId = 1 WHERE UserId IS NULL;');
+                            END
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Supplier')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Supplier') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.Supplier ADD UserId INT NULL;
+                                EXEC('UPDATE dbo.Supplier SET UserId = 1 WHERE UserId IS NULL;');
+                            END
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Expense')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Expense') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.Expense ADD UserId INT NULL;
+                            END
+                            EXEC('UPDATE dbo.Expense SET UserId = ISNULL(CreatedBy, 1), CreatedBy = ISNULL(CreatedBy, 1) WHERE UserId IS NULL OR CreatedBy IS NULL;');
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Purchase')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Purchase') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.Purchase ADD UserId INT NULL;
+                            END
+                            EXEC('UPDATE dbo.Purchase SET UserId = ISNULL(CreatedBy, 1), CreatedBy = ISNULL(CreatedBy, 1) WHERE UserId IS NULL OR CreatedBy IS NULL;');
+                        END;
+
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'SalesInvoice')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.SalesInvoice') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.SalesInvoice ADD UserId INT NULL;
+                            END
+                            EXEC('UPDATE dbo.SalesInvoice SET UserId = ISNULL(CreatedBy, 1), CreatedBy = ISNULL(CreatedBy, 1) WHERE UserId IS NULL OR CreatedBy IS NULL;');
                         END;", connection))
                     {
                         cmd.ExecuteNonQuery();

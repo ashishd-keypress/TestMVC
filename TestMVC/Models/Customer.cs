@@ -40,6 +40,8 @@ namespace TestMVC.Models
         [Display(Name = "Active")]
         public bool IsActive { get; set; } = true;
 
+        public int? UserId { get; set; }
+
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

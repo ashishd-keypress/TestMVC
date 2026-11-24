@@ -13,14 +13,14 @@ namespace TestMVC.Service
             _expenseRepository = expenseRepository;
         }
 
-        public Task<List<Expense>> GetExpenses(string? search = null)
+        public Task<List<Expense>> GetExpenses(string? search = null, int? userId = null)
         {
-            return _expenseRepository.GetExpenses(search);
+            return _expenseRepository.GetExpenses(search, userId);
         }
 
-        public Task<Expense?> GetExpenseById(long expenseId)
+        public Task<Expense?> GetExpenseById(long expenseId, int? userId = null)
         {
-            return _expenseRepository.GetExpenseById(expenseId);
+            return _expenseRepository.GetExpenseById(expenseId, userId);
         }
 
         public Task<bool> SaveExpense(Expense expense)
@@ -28,9 +28,9 @@ namespace TestMVC.Service
             return _expenseRepository.SaveExpense(expense);
         }
 
-        public Task<bool> DeleteExpense(long expenseId)
+        public Task<bool> DeleteExpense(long expenseId, int? userId = null)
         {
-            return _expenseRepository.DeleteExpense(expenseId);
+            return _expenseRepository.DeleteExpense(expenseId, userId);
         }
 
         public Task<List<ExpenseCategory>> GetExpenseCategories()

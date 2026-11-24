@@ -22,7 +22,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search)
         {
-            var expenses = await _expenseService.GetExpenses(search);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var expenses = await _expenseService.GetExpenses(search, currentUserId);
             ViewBag.Search = search;
             return View(expenses);
         }
@@ -40,6 +41,10 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Expense expense)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            expense.UserId = currentUserId;
+            expense.CreatedBy = currentUserId;
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
@@ -62,7 +67,8 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(long id)
         {
-            var expense = await _expenseService.GetExpenseById(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var expense = await _expenseService.GetExpenseById(id, currentUserId);
             if (expense == null)
             {
                 TempData["Error"] = "Expense record not found.";
@@ -78,6 +84,10 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Expense expense)
         {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            expense.UserId = currentUserId;
+            expense.CreatedBy = currentUserId;
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
@@ -101,7 +111,8 @@ namespace TestMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(long id)
         {
-            var success = await _expenseService.DeleteExpense(id);
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var success = await _expenseService.DeleteExpense(id, currentUserId);
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                 Request.Headers.Accept.ToString().Contains("application/json"))
             {
@@ -111,7 +122,7 @@ namespace TestMVC.Controllers
                 }
 
                 // Recalculate fresh stats directly from DB
-                var allExpenses = await _expenseService.GetExpenses();
+                var allExpenses = await _expenseService.GetExpenses(userId: currentUserId);
                 DateTime now = DateTime.Today;
 
                 var currentMonthExpenses = allExpenses

@@ -22,14 +22,14 @@
         <div class="col-md-6 col-lg-3">
             <div class="kpi-card kpi-card-product">
                 <div class="kpi-label">Today's Sales Revenue</div>
-                <div class="kpi-number fs-3">₹@todaySales.ToString("N2")</div>
+                <div class="kpi-number fs-3" id="salesTodayTotal">₹@todaySales.ToString("N2")</div>
                 <div class="small text-muted mt-2">Completed cash & digital sales</div>
             </div>
         </div>
         <div class="col-md-6 col-lg-3">
             <div class="kpi-card kpi-card-brand">
                 <div class="kpi-label">Total Invoices Generated</div>
-                <div class="kpi-number">@Model.Count</div>
+                <div class="kpi-number" id="salesTotalInvoices">@Model.Count</div>
                 <div class="small text-muted mt-2">Lifetime transactions</div>
             </div>
         </div>
@@ -38,16 +38,16 @@
     <!-- Search Bar -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="salesSearchForm" class="row g-2 align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search by Invoice No, Customer Name, Mobile Number..." />
+                        <input type="text" id="salesSearchInput" name="search" value="@search" class="form-control" placeholder="Search by Invoice No, Customer Name, Mobile Number..." />
                     </div>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">Search</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                    <button type="button" id="salesResetBtn" class="btn btn-outline-secondary">Reset</button>
                 </div>
             </form>
         </div>
@@ -55,7 +55,7 @@
 
     <!-- Invoices Table -->
     <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover table-bordered align-middle mb-0">
+        <table class="table table-hover table-bordered align-middle mb-0" id="salesTable">
             <thead class="table-light">
                 <tr>
                     <th style="width: 70px;" class="text-center">Sr. No.</th>
@@ -116,3 +116,86 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('salesSearchForm');
+            const input = document.getElementById('salesSearchInput');
+            const resetBtn = document.getElementById('salesResetBtn');
+            const tbody = document.querySelector('#salesTable tbody');
+
+            async function searchSales(query) {
+                try {
+                    const res = await window.apiFetch(`/api/Sales/sales_invoice_list_get?search=${encodeURIComponent(query || '')}`, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success) return;
+
+                    const elToday = document.getElementById('salesTodayTotal');
+                    const elTotal = document.getElementById('salesTotalInvoices');
+                    if (elToday && json.todaySalesFormatted !== undefined) elToday.innerText = '₹' + json.todaySalesFormatted;
+                    if (elTotal && json.totalInvoices !== undefined) elTotal.innerText = json.totalInvoices;
+
+                    if (tbody) {
+                        if (!json.data || json.data.length === 0) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="10" class="text-center py-5 text-muted">
+                                        <i class="bi bi-receipt fs-1 d-block mb-2 text-muted"></i>
+                                        <em>${query ? `No sales invoices found matching "${escapeHtml(query)}".` : "No sales invoices found. Click '+ New Billing Invoice' to generate a bill."}</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            tbody.innerHTML = json.data.map((inv, idx) => {
+                                const dueClass = inv.dueAmount > 0 ? 'text-danger fw-bold' : 'text-muted';
+                                return `
+                                    <tr>
+                                        <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                                        <td class="fw-bold">
+                                            <a href="/Sales/Invoice/${inv.salesInvoiceId}" class="text-decoration-none">${escapeHtml(inv.invoiceNumber || '')}</a>
+                                        </td>
+                                        <td>${escapeHtml(inv.customerName || '')}</td>
+                                        <td class="text-muted">${escapeHtml(inv.customerPhone || '')}</td>
+                                        <td class="small text-muted">${escapeHtml(inv.invoiceDate || '')}</td>
+                                        <td class="text-end fw-bold">₹${escapeHtml(inv.grandTotalFormatted)}</td>
+                                        <td class="text-end text-success">₹${escapeHtml(inv.paidAmountFormatted)}</td>
+                                        <td class="text-end ${dueClass}">₹${escapeHtml(inv.dueAmountFormatted)}</td>
+                                        <td class="text-center">
+                                            <span class="badge-status-pill badge-status-active">${escapeHtml(inv.status || '')}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="/Sales/Invoice/${inv.salesInvoiceId}" class="btn btn-sm btn-outline-primary" title="Print Invoice">
+                                                <i class="bi bi-printer me-1"></i> Bill
+                                            </a>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    }
+
+                    const newUrl = query ? `/Sales?search=${encodeURIComponent(query)}` : '/Sales';
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                } catch (err) {
+                    console.error('Sales search API error:', err);
+                    showToast('Error searching invoices: ' + err.message, 'error');
+                }
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    searchSales(input ? input.value.trim() : '');
+                });
+            }
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (input) input.value = '';
+                    searchSales('');
+                });
+            }
+        })();
+    </script>
+}

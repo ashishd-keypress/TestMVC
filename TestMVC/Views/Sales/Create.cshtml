@@ -233,245 +233,269 @@
 
 @section Scripts {
     <script>
-        const cartItems = [];
-        const customersList = @Html.Raw(JsonConvert.SerializeObject(customersList));
+        (function () {
+            const cartItems = [];
+            const customersList = @Html.Raw(JsonConvert.SerializeObject(customersList));
 
-        function onCustomerSelected() {
-            const select = document.getElementById('customerSelect');
-            const custId = select.value;
-            const nameInput = document.getElementById('custNameInput');
+            window.onCustomerSelected = function () {
+                const select = document.getElementById('customerSelect');
+                const custId = select.value;
+                const nameInput = document.getElementById('custNameInput');
 
-            if (custId) {
-                const found = customersList.find(c => c.CustomerId == custId);
-                if (found) {
-                    nameInput.value = `${found.CustomerName} (${found.Phone})`;
+                if (custId) {
+                    const found = customersList.find(c => c.CustomerId == custId);
+                    if (found) {
+                        nameInput.value = `${found.CustomerName} (${found.Phone})`;
+                        return;
+                    }
+                }
+                nameInput.value = 'Walk-in Customer';
+            };
+
+            window.onProductSelected = async function () {
+                const sel = document.getElementById('productSelect');
+                const opt = sel.options[sel.selectedIndex];
+                const imeiContainer = document.getElementById('imeiSelectContainer');
+                const imeiSelect = document.getElementById('deviceUnitSelect');
+                const qtyInput = document.getElementById('itemQty');
+
+                if (!opt.value) {
+                    imeiContainer.style.display = 'none';
                     return;
                 }
-            }
-            nameInput.value = 'Walk-in Customer';
-        }
 
-        async function onProductSelected() {
-            const sel = document.getElementById('productSelect');
-            const opt = sel.options[sel.selectedIndex];
-            const imeiContainer = document.getElementById('imeiSelectContainer');
-            const imeiSelect = document.getElementById('deviceUnitSelect');
-            const qtyInput = document.getElementById('itemQty');
+                const trackImei = opt.getAttribute('data-track') === '1';
 
-            if (!opt.value) {
-                imeiContainer.style.display = 'none';
-                return;
-            }
+                if (trackImei) {
+                    imeiContainer.style.display = 'block';
+                    qtyInput.value = 1;
+                    qtyInput.readOnly = true;
 
-            const trackImei = opt.getAttribute('data-track') === '1';
-
-            if (trackImei) {
-                imeiContainer.style.display = 'block';
-                qtyInput.value = 1;
-                qtyInput.readOnly = true;
-
-                imeiSelect.innerHTML = '<option value="">Loading IMEIs...</option>';
-                try {
-                    const res = await fetch(`/Inventory/AvailableByProduct?productId=${opt.value}`);
-                    const json = await res.json();
-                    if (json.success && json.devices && json.devices.length > 0) {
-                        imeiSelect.innerHTML = '<option value="">-- Choose In-Stock IMEI --</option>' + 
-                            json.devices.map(d => `<option value="${d.deviceUnitId}" data-imei1="${d.imei1}" data-imei2="${d.imei2 || ''}">${d.imei1} ${d.imei2 ? '(' + d.imei2 + ')' : ''}</option>`).join('');
-                    } else {
-                        imeiSelect.innerHTML = '<option value="">No devices in stock!</option>';
+                    imeiSelect.innerHTML = '<option value="">Loading IMEIs...</option>';
+                    try {
+                        const res = await window.apiFetch(`/api/Inventory/inventory_available_devices_get?productId=${opt.value}`, { method: 'GET' });
+                        const json = await res.json();
+                        if (json.success && json.devices && json.devices.length > 0) {
+                            imeiSelect.innerHTML = '<option value="">-- Choose In-Stock IMEI --</option>' +
+                                json.devices.map(d => `<option value="${d.deviceUnitId}" data-imei1="${d.imei1}" data-imei2="${d.imei2 || ''}">${d.imei1} ${d.imei2 ? '(' + d.imei2 + ')' : ''}</option>`).join('');
+                        } else {
+                            imeiSelect.innerHTML = '<option value="">No devices in stock!</option>';
+                        }
+                    } catch {
+                        imeiSelect.innerHTML = '<option value="">Failed to load IMEIs</option>';
                     }
-                } catch {
-                    imeiSelect.innerHTML = '<option value="">Failed to load IMEIs</option>';
-                }
-            } else {
-                imeiContainer.style.display = 'none';
-                qtyInput.readOnly = false;
-            }
-        }
-
-        async function quickScanImei() {
-            const input = document.getElementById('scanImeiInput');
-            const fb = document.getElementById('scanFeedback');
-            const imei = input.value.trim();
-            if (!imei) return;
-
-            fb.innerHTML = '<span class="text-muted">Searching device...</span>';
-            try {
-                const res = await fetch(`/Inventory/SearchImei?imei=${encodeURIComponent(imei)}`);
-                const json = await res.json();
-                if (json.success && json.device) {
-                    const dev = json.device;
-                    if (dev.currentStatus !== 1) {
-                        fb.innerHTML = `<span class="text-danger">Device with IMEI ${imei} is already <strong>${dev.statusName}</strong>!</span>`;
-                        return;
-                    }
-
-                    // Check if already in cart
-                    if (cartItems.some(i => i.DeviceUnitId === dev.deviceUnitId)) {
-                        fb.innerHTML = `<span class="text-warning">Device IMEI ${imei} is already in the cart!</span>`;
-                        return;
-                    }
-
-                    cartItems.push({
-                        ProductId: dev.productId,
-                        ProductName: dev.productName,
-                        RAM: dev.ram,
-                        Storage: dev.storage,
-                        Color: dev.color,
-                        TrackIMEI: true,
-                        DeviceUnitId: dev.deviceUnitId,
-                        IMEI1: dev.imei1,
-                        IMEI2: dev.imei2,
-                        Quantity: 1,
-                        UnitPrice: dev.sellingPrice || 0,
-                        Discount: 0,
-                        TaxAmount: 0,
-                        TotalAmount: dev.sellingPrice || 0
-                    });
-
-                    renderCart();
-                    input.value = '';
-                    fb.innerHTML = `<span class="text-success">Added: ${dev.productName} (IMEI: ${dev.imei1})</span>`;
                 } else {
-                    fb.innerHTML = `<span class="text-danger">${json.message || 'Device not found.'}</span>`;
+                    imeiContainer.style.display = 'none';
+                    qtyInput.readOnly = false;
                 }
-            } catch (err) {
-                fb.innerHTML = `<span class="text-danger">Scan error: ${err.message}</span>`;
-            }
-        }
+            };
 
-        function addItemToCart() {
-            const sel = document.getElementById('productSelect');
-            const opt = sel.options[sel.selectedIndex];
-            if (!opt || !opt.value) {
-                showToast('Please select a product.', 'error');
-                return;
-            }
+            window.quickScanImei = async function () {
+                const input = document.getElementById('scanImeiInput');
+                const fb = document.getElementById('scanFeedback');
+                const imei = input.value.trim();
+                if (!imei) return;
 
-            const productId = parseInt(opt.value);
-            const productName = opt.getAttribute('data-name');
-            const unitPrice = parseFloat(opt.getAttribute('data-price')) || 0;
-            const trackImei = opt.getAttribute('data-track') === '1';
-            const ram = opt.getAttribute('data-ram') || '';
-            const storage = opt.getAttribute('data-storage') || '';
-            const color = opt.getAttribute('data-color') || '';
-            const qty = parseInt(document.getElementById('itemQty').value) || 1;
+                fb.innerHTML = '<span class="text-muted">Searching device...</span>';
+                try {
+                    const res = await window.apiFetch(`/api/Inventory/inventory_imei_search?imei=${encodeURIComponent(imei)}`, { method: 'GET' });
+                    const json = await res.json();
+                    if (json.success && json.device) {
+                        const dev = json.device;
+                        if (dev.currentStatus !== 1) {
+                            fb.innerHTML = `<span class="text-danger">Device with IMEI ${escapeHtml(imei)} is already <strong>${escapeHtml(dev.statusName)}</strong>!</span>`;
+                            return;
+                        }
 
-            let deviceUnitId = null;
-            let imei1 = null;
-            let imei2 = null;
+                        if (cartItems.some(i => i.DeviceUnitId === dev.deviceUnitId)) {
+                            fb.innerHTML = `<span class="text-warning">Device IMEI ${escapeHtml(imei)} is already in the cart!</span>`;
+                            return;
+                        }
 
-            if (trackImei) {
-                const imeiSel = document.getElementById('deviceUnitSelect');
-                const imeiOpt = imeiSel.options[imeiSel.selectedIndex];
-                if (!imeiOpt || !imeiOpt.value) {
-                    showToast('Please select an available IMEI number for this phone.', 'error');
+                        cartItems.push({
+                            ProductId: dev.productId,
+                            ProductName: dev.productName,
+                            RAM: dev.ram,
+                            Storage: dev.storage,
+                            Color: dev.color,
+                            TrackIMEI: true,
+                            DeviceUnitId: dev.deviceUnitId,
+                            IMEI1: dev.imei1,
+                            IMEI2: dev.imei2,
+                            Quantity: 1,
+                            UnitPrice: dev.sellingPrice || 0,
+                            Discount: 0,
+                            TaxAmount: 0,
+                            TotalAmount: dev.sellingPrice || 0
+                        });
+
+                        renderCart();
+                        input.value = '';
+                        fb.innerHTML = `<span class="text-success">Added: ${escapeHtml(dev.productName)} (IMEI: ${escapeHtml(dev.imei1)})</span>`;
+                    } else {
+                        fb.innerHTML = `<span class="text-danger">${escapeHtml(json.message || 'Device not found.')}</span>`;
+                    }
+                } catch (err) {
+                    fb.innerHTML = `<span class="text-danger">Scan error: ${escapeHtml(err.message)}</span>`;
+                }
+            };
+
+            window.addItemToCart = function () {
+                const sel = document.getElementById('productSelect');
+                const opt = sel.options[sel.selectedIndex];
+                if (!opt || !opt.value) {
+                    showToast('Please select a product.', 'error');
                     return;
                 }
-                deviceUnitId = parseInt(imeiOpt.value);
-                imei1 = imeiOpt.getAttribute('data-imei1');
-                imei2 = imeiOpt.getAttribute('data-imei2');
 
-                if (cartItems.some(i => i.DeviceUnitId === deviceUnitId)) {
-                    showToast('This IMEI is already added to the cart.', 'warning');
-                    return;
+                const productId = parseInt(opt.value);
+                const productName = opt.getAttribute('data-name');
+                const unitPrice = parseFloat(opt.getAttribute('data-price')) || 0;
+                const trackImei = opt.getAttribute('data-track') === '1';
+                const ram = opt.getAttribute('data-ram') || '';
+                const storage = opt.getAttribute('data-storage') || '';
+                const color = opt.getAttribute('data-color') || '';
+                const qty = parseInt(document.getElementById('itemQty').value) || 1;
+
+                let deviceUnitId = null;
+                let imei1 = null;
+                let imei2 = null;
+
+                if (trackImei) {
+                    const imeiSel = document.getElementById('deviceUnitSelect');
+                    const imeiOpt = imeiSel.options[imeiSel.selectedIndex];
+                    if (!imeiOpt || !imeiOpt.value) {
+                        showToast('Please select an available IMEI number for this phone.', 'error');
+                        return;
+                    }
+                    deviceUnitId = parseInt(imeiOpt.value);
+                    imei1 = imeiOpt.getAttribute('data-imei1');
+                    imei2 = imeiOpt.getAttribute('data-imei2');
+
+                    if (cartItems.some(i => i.DeviceUnitId === deviceUnitId)) {
+                        showToast('This IMEI is already added to the cart.', 'warning');
+                        return;
+                    }
                 }
+
+                cartItems.push({
+                    ProductId: productId,
+                    ProductName: productName,
+                    RAM: ram,
+                    Storage: storage,
+                    Color: color,
+                    TrackIMEI: trackImei,
+                    DeviceUnitId: deviceUnitId,
+                    IMEI1: imei1,
+                    IMEI2: imei2,
+                    Quantity: trackImei ? 1 : qty,
+                    UnitPrice: unitPrice,
+                    Discount: 0,
+                    TaxAmount: 0,
+                    TotalAmount: unitPrice * (trackImei ? 1 : qty)
+                });
+
+                renderCart();
+                document.getElementById('productSelect').value = '';
+                document.getElementById('imeiSelectContainer').style.display = 'none';
+            };
+
+            window.removeItem = function (index) {
+                cartItems.splice(index, 1);
+                renderCart();
+            };
+
+            function renderCart() {
+                const tbody = document.getElementById('cartTableBody');
+                if (cartItems.length === 0) {
+                    tbody.innerHTML = `<tr id="emptyCartRow"><td colspan="7" class="text-center py-4 text-muted"><em>No products added yet. Select a product or scan an IMEI above.</em></td></tr>`;
+                } else {
+                    tbody.innerHTML = cartItems.map((item, idx) => `
+                        <tr>
+                            <td class="text-muted small">${idx + 1}</td>
+                            <td>
+                                <div class="fw-semibold">${escapeHtml(item.ProductName)}</div>
+                                ${item.RAM ? `<small class="text-muted">${escapeHtml(item.RAM)}/${escapeHtml(item.Storage)} &bull; ${escapeHtml(item.Color)}</small>` : ''}
+                            </td>
+                            <td>
+                                ${item.IMEI1 ? `<code class="px-2 py-1 rounded bg-light border small text-dark">${escapeHtml(item.IMEI1)}</code>` : '<span class="text-muted">-</span>'}
+                            </td>
+                            <td class="text-center">${item.Quantity}</td>
+                            <td class="text-end">₹${item.UnitPrice.toFixed(2)}</td>
+                            <td class="text-end fw-bold">₹${item.TotalAmount.toFixed(2)}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeItem(${idx})">&times;</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                window.calculateTotals();
             }
 
-            cartItems.push({
-                ProductId: productId,
-                ProductName: productName,
-                RAM: ram,
-                Storage: storage,
-                Color: color,
-                TrackIMEI: trackImei,
-                DeviceUnitId: deviceUnitId,
-                IMEI1: imei1,
-                IMEI2: imei2,
-                Quantity: trackImei ? 1 : qty,
-                UnitPrice: unitPrice,
-                Discount: 0,
-                TaxAmount: 0,
-                TotalAmount: unitPrice * (trackImei ? 1 : qty)
-            });
+            window.calculateTotals = function () {
+                const subTotal = cartItems.reduce((acc, curr) => acc + curr.TotalAmount, 0);
+                const discount = parseFloat(document.getElementById('txtDiscount').value) || 0;
+                const tax = parseFloat(document.getElementById('txtTax').value) || 0;
+                const grandTotal = Math.max(0, subTotal - discount + tax);
 
-            renderCart();
-            document.getElementById('productSelect').value = '';
-            document.getElementById('imeiSelectContainer').style.display = 'none';
-        }
+                document.getElementById('lblSubTotal').innerText = `₹${subTotal.toFixed(2)}`;
+                document.getElementById('lblGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
 
-        function removeItem(index) {
-            cartItems.splice(index, 1);
-            renderCart();
-        }
+                document.getElementById('hiddenSubTotal').value = subTotal.toFixed(2);
+                document.getElementById('hiddenGrandTotal').value = grandTotal.toFixed(2);
 
-        function renderCart() {
-            const tbody = document.getElementById('cartTableBody');
-            if (cartItems.length === 0) {
-                tbody.innerHTML = `<tr id="emptyCartRow"><td colspan="7" class="text-center py-4 text-muted"><em>No products added yet. Select a product or scan an IMEI above.</em></td></tr>`;
-            } else {
-                tbody.innerHTML = cartItems.map((item, idx) => `
-                    <tr>
-                        <td class="text-muted small">${idx + 1}</td>
-                        <td>
-                            <div class="fw-semibold">${item.ProductName}</div>
-                            ${item.RAM ? `<small class="text-muted">${item.RAM}/${item.Storage} &bull; ${item.Color}</small>` : ''}
-                        </td>
-                        <td>
-                            ${item.IMEI1 ? `<code class="px-2 py-1 rounded bg-light border small text-dark">${item.IMEI1}</code>` : '<span class="text-muted">-</span>'}
-                        </td>
-                        <td class="text-center">${item.Quantity}</td>
-                        <td class="text-end">₹${item.UnitPrice.toFixed(2)}</td>
-                        <td class="text-end fw-bold">₹${item.TotalAmount.toFixed(2)}</td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeItem(${idx})">&times;</button>
-                        </td>
-                    </tr>
-                `).join('');
+                const paidInput = document.getElementById('txtPaidAmount');
+                if (paidInput.value === "0" || paidInput.getAttribute('data-user-edited') !== 'true') {
+                    paidInput.value = grandTotal.toFixed(2);
+                }
+
+                window.calculateDue();
+            };
+
+            window.calculateDue = function () {
+                const grandTotal = parseFloat(document.getElementById('hiddenGrandTotal').value) || 0;
+                const paidInput = document.getElementById('txtPaidAmount');
+                paidInput.setAttribute('data-user-edited', 'true');
+                const paid = parseFloat(paidInput.value) || 0;
+                const due = Math.max(0, grandTotal - paid);
+
+                document.getElementById('lblDueAmount').innerText = `₹${due.toFixed(2)}`;
+                document.getElementById('hiddenDueAmount').value = due.toFixed(2);
+            };
+
+            const form = document.getElementById('billingForm');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    if (cartItems.length === 0) {
+                        showToast('Please add at least one product or device to generate an invoice.', 'error');
+                        return false;
+                    }
+                    document.getElementById('itemsJsonInput').value = JSON.stringify(cartItems);
+
+                    window.submitApiForm(form, {
+                        url: '/api/Sales/sales_invoice_create',
+                        method: 'POST',
+                        buildPayload: function (f) {
+                            const custVal = document.getElementById('customerSelect').value;
+                            return {
+                                customerId: custVal ? parseInt(custVal, 10) : null,
+                                invoiceNumber: f.querySelector('[name="InvoiceNumber"]').value.trim(),
+                                subTotal: parseFloat(document.getElementById('hiddenSubTotal').value) || 0,
+                                discount: parseFloat(document.getElementById('txtDiscount').value) || 0,
+                                taxAmount: parseFloat(document.getElementById('txtTax').value) || 0,
+                                grandTotal: parseFloat(document.getElementById('hiddenGrandTotal').value) || 0,
+                                paymentMethodId: parseInt(document.getElementById('payMethodSelect').value, 10) || 1,
+                                paidAmount: parseFloat(document.getElementById('txtPaidAmount').value) || 0,
+                                dueAmount: parseFloat(document.getElementById('hiddenDueAmount').value) || 0,
+                                transactionReference: f.querySelector('[name="TransactionReference"]').value.trim() || null,
+                                items: cartItems
+                            };
+                        }
+                    });
+                });
             }
-
-            calculateTotals();
-        }
-
-        function calculateTotals() {
-            const subTotal = cartItems.reduce((acc, curr) => acc + curr.TotalAmount, 0);
-            const discount = parseFloat(document.getElementById('txtDiscount').value) || 0;
-            const tax = parseFloat(document.getElementById('txtTax').value) || 0;
-            const grandTotal = Math.max(0, subTotal - discount + tax);
-
-            document.getElementById('lblSubTotal').innerText = `₹${subTotal.toFixed(2)}`;
-            document.getElementById('lblGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
-
-            document.getElementById('hiddenSubTotal').value = subTotal.toFixed(2);
-            document.getElementById('hiddenGrandTotal').value = grandTotal.toFixed(2);
-
-            // Default Paid Amount to Grand Total if it was matching previous total
-            const paidInput = document.getElementById('txtPaidAmount');
-            if (paidInput.value === "0" || paidInput.getAttribute('data-user-edited') !== 'true') {
-                paidInput.value = grandTotal.toFixed(2);
-            }
-
-            calculateDue();
-        }
-
-        function calculateDue() {
-            const grandTotal = parseFloat(document.getElementById('hiddenGrandTotal').value) || 0;
-            const paidInput = document.getElementById('txtPaidAmount');
-            paidInput.setAttribute('data-user-edited', 'true');
-            const paid = parseFloat(paidInput.value) || 0;
-            const due = Math.max(0, grandTotal - paid);
-
-            document.getElementById('lblDueAmount').innerText = `₹${due.toFixed(2)}`;
-            document.getElementById('hiddenDueAmount').value = due.toFixed(2);
-        }
-
-        document.getElementById('billingForm').addEventListener('submit', function (e) {
-            if (cartItems.length === 0) {
-                e.preventDefault();
-                showToast('Please add at least one product or device to generate an invoice.', 'error');
-                return false;
-            }
-            document.getElementById('itemsJsonInput').value = JSON.stringify(cartItems);
-        });
+        })();
     </script>
 }

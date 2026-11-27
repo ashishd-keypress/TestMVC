@@ -167,9 +167,12 @@
             const btn = document.getElementById('btnRefreshCaptcha');
             if (btn) btn.style.transform = 'rotate(180deg)';
 
-            fetch('/Account/GetNewCaptcha', {
+            fetch('/api/Auth/auth_captcha_generate', {
                 method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
             .then(res => res.json())
             .then(data => {

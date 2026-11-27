@@ -22,16 +22,16 @@
     <!-- Search Bar -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="customerSearchForm" class="row g-2 align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search by name, phone, GST, email..." />
+                        <input type="text" id="customerSearchInput" name="search" value="@search" class="form-control" placeholder="Search by name, phone, GST, email..." />
                     </div>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">Search</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                    <button type="button" id="customerResetBtn" class="btn btn-outline-secondary">Reset</button>
                 </div>
             </form>
         </div>
@@ -108,3 +108,84 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('customerSearchForm');
+            const input = document.getElementById('customerSearchInput');
+            const resetBtn = document.getElementById('customerResetBtn');
+            const tbody = document.querySelector('#customerTable tbody');
+
+            async function searchCustomers(query) {
+                try {
+                    const res = await window.apiFetch(`/api/Customer/customer_list_get?search=${encodeURIComponent(query || '')}`, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success || !tbody) return;
+
+                    if (!json.data || json.data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr id="noRecordsRow">
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-people fs-1 d-block mb-2 text-muted"></i>
+                                    <em>${query ? `No customers found matching "${escapeHtml(query)}".` : 'No customers registered yet.'}</em>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        tbody.innerHTML = json.data.map((c, idx) => {
+                            const safeName = escapeHtml(c.customerName || '');
+                            const safeNameArg = (c.customerName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            const balClass = c.currentBalance > 0 ? 'text-danger fw-bold' : 'text-muted';
+                            const statusBtn = c.isActive
+                                ? `<button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Customer', ${c.customerId}, this)" title="Click to turn OFF (Inactive)"><i class="bi bi-toggle-on me-1"></i> ON</button>`
+                                : `<button type="button" class="btn btn-sm btn-status-off px-2 py-1" onclick="toggleStatus('Customer', ${c.customerId}, this)" title="Click to turn ON (Active)"><i class="bi bi-toggle-off me-1"></i> OFF</button>`;
+
+                            return `
+                                <tr data-customer-id="${c.customerId}">
+                                    <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                                    <td class="fw-bold">${safeName}</td>
+                                    <td><a href="tel:${escapeHtml(c.phone || '')}" class="text-decoration-none">${escapeHtml(c.phone || '')}</a></td>
+                                    <td class="text-muted">${c.email ? escapeHtml(c.email) : '-'}</td>
+                                    <td><small class="text-muted">${c.gstNumber ? escapeHtml(c.gstNumber) : '-'}</small></td>
+                                    <td class="text-end ${balClass}">₹${escapeHtml(c.currentBalanceFormatted)}</td>
+                                    <td class="text-center">${statusBtn}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex gap-2 justify-content-center align-items-center">
+                                            <a href="/Customer/Edit/${c.customerId}" class="btn btn-sm btn-outline-primary" title="Edit Customer ${safeName}">
+                                                <i class="bi bi-pencil-square me-1"></i>Edit
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCustomer(${c.customerId}, '${safeNameArg}', this.closest('tr'))" title="Delete Customer ${safeName}">
+                                                <i class="bi bi-trash me-1"></i>Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+
+                    const newUrl = query ? `/Customer?search=${encodeURIComponent(query)}` : '/Customer';
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                } catch (err) {
+                    console.error('Customer search API error:', err);
+                    showToast('Error searching customers: ' + err.message, 'error');
+                }
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    searchCustomers(input ? input.value.trim() : '');
+                });
+            }
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (input) input.value = '';
+                    searchCustomers('');
+                });
+            }
+        })();
+    </script>
+}

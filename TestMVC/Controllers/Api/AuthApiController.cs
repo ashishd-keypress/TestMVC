@@ -21,7 +21,9 @@ namespace TestMVC.Controllers.Api
             _authService = authService;
         }
 
-        [HttpGet("generate-captcha")]
+        [HttpGet]
+        [Route("auth_captcha_generate")]
+        [Route("generate-captcha")]
         public IActionResult GenerateCaptcha()
         {
             string code = Random.Shared.Next(1000, 9999).ToString();
@@ -29,6 +31,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
+        [Route("auth_login")]
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] LoginReq model)
         {

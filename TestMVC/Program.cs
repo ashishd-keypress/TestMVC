@@ -100,15 +100,18 @@ namespace TestMVC
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseMiddleware<Utility.ApiObservabilityMiddleware>();
+
             app.MapStaticAssets();
 
             // Map API Controllers (Attribute Routing e.g., /api/Auth/login, /api/Product/toggle-status)
             app.MapControllers();
 
-            // Map MVC Default Route - Opens directly on Login page when app starts
+            // Map MVC Default Route - "/" resolves to Home/Index (Dashboard; [Authorize] redirects unauthenticated users to /Account/Login)
+            // and /{Controller} cleanly resolves to /{Controller}/Index
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Account}/{action=Login}/{id?}")
+                pattern: "{controller=Home}/{action=Index}/{id?}")
                 .WithStaticAssets();
 
             app.Run();

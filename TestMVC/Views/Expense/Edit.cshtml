@@ -13,7 +13,7 @@
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Edit" method="post">
+                    <form asp-action="Edit" method="post" id="expenseEditForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="ExpenseId" />
                         <input type="hidden" asp-for="BranchId" />
@@ -72,4 +72,30 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const form = document.getElementById('expenseEditForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = parseInt(form.querySelector('[name="ExpenseId"]').value, 10) || 0;
+                window.submitApiForm(form, {
+                    url: '/api/Expense/expense_detail_update',
+                    method: 'PUT',
+                    redirectUrl: '/Expense',
+                    buildPayload: function (f) {
+                        return {
+                            expenseId: id,
+                            branchId: parseInt(f.querySelector('[name="BranchId"]').value, 10) || 1,
+                            expenseCategoryId: parseInt(f.querySelector('[name="ExpenseCategoryId"]').value, 10) || 0,
+                            expenseDate: f.querySelector('[name="ExpenseDate"]').value,
+                            amount: parseFloat(f.querySelector('[name="Amount"]').value) || 0,
+                            paymentMethodId: parseInt(f.querySelector('[name="PaymentMethodId"]').value, 10) || 1,
+                            description: f.querySelector('[name="Description"]').value.trim()
+                        };
+                    }
+                });
+            });
+        })();
+    </script>
 }

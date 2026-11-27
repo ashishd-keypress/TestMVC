@@ -13,7 +13,7 @@
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Create" method="post">
+                    <form asp-action="Create" method="post" id="customerCreateForm">
                         @Html.AntiForgeryToken()
 
                         <div class="mb-3">
@@ -75,4 +75,29 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const form = document.getElementById('customerCreateForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                window.submitApiForm(form, {
+                    url: '/api/Customer/customer_detail_create',
+                    method: 'POST',
+                    redirectUrl: '/Customer',
+                    buildPayload: function (f) {
+                        return {
+                            customerName: f.querySelector('[name="CustomerName"]').value.trim(),
+                            phone: f.querySelector('[name="Phone"]').value.trim(),
+                            email: f.querySelector('[name="Email"]').value.trim() || null,
+                            gstNumber: f.querySelector('[name="GSTNumber"]').value.trim() || null,
+                            openingBalance: parseFloat(f.querySelector('[name="OpeningBalance"]').value) || 0,
+                            address: f.querySelector('[name="Address"]').value.trim() || null,
+                            isActive: true
+                        };
+                    }
+                });
+            });
+        })();
+    </script>
 }

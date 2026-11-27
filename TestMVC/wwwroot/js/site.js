@@ -8,6 +8,117 @@ function getAntiForgeryToken() {
     return tokenInput ? tokenInput.value : '';
 }
 
+// Unified API Fetch helper ensuring consistent headers, credentials, JSON/FormData handling,
+// and clean visibility in Chrome DevTools Network (Fetch/XHR) + Copy as cURL support.
+window.apiFetch = async function (url, options = {}) {
+    const token = getAntiForgeryToken();
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = Object.assign({
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    }, options.headers || {});
+
+    if (token && method !== 'GET' && method !== 'HEAD') {
+        headers['RequestVerificationToken'] = headers['RequestVerificationToken'] || token;
+    }
+
+    let body = options.body;
+    if (body !== undefined && body !== null && !(body instanceof FormData) && typeof body !== 'string' && !(body instanceof URLSearchParams)) {
+        if (!headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
+        body = JSON.stringify(body);
+    }
+
+    return fetch(url, {
+        method,
+        credentials: 'same-origin',
+        headers,
+        body
+    });
+};
+
+// Reusable AJAX API Form Submission helper (keeps page in SPA so Network tab never clears)
+window.submitApiForm = async function (form, config) {
+    if (!form) return;
+
+    if (window.jQuery && typeof window.jQuery(form).valid === 'function') {
+        if (!window.jQuery(form).valid()) {
+            return;
+        }
+    }
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Saving...';
+    }
+
+    const existingAlert = form.querySelector('.api-form-error-alert');
+    if (existingAlert) existingAlert.remove();
+
+    try {
+        const payload = config.buildPayload
+            ? config.buildPayload(form)
+            : (config.useFormData ? new FormData(form) : Object.fromEntries(new FormData(form).entries()));
+
+        const res = await window.apiFetch(config.url, {
+            method: config.method || 'POST',
+            body: payload
+        });
+
+        const json = await res.json().catch(() => null);
+
+        if (res.ok && json && json.success !== false) {
+            if (typeof config.onSuccess === 'function') {
+                await config.onSuccess(json, res);
+            } else {
+                showToast((json && json.message) || config.successMessage || 'Saved successfully.', 'success');
+                const target = (json && json.redirectUrl) || config.redirectUrl;
+                if (target) {
+                    if (typeof spaNavigate === 'function') {
+                        await spaNavigate(target, true);
+                    } else {
+                        window.location.href = target;
+                    }
+                }
+            }
+        } else {
+            let firstValidationMsg = '';
+            if (json && json.errors && typeof json.errors === 'object') {
+                for (const [key, msgs] of Object.entries(json.errors)) {
+                    const span = form.querySelector(`[data-valmsg-for="${key}"]`) || form.querySelector(`[data-valmsg-for="${key.charAt(0).toUpperCase() + key.slice(1)}"]`);
+                    if (Array.isArray(msgs) && msgs.length > 0) {
+                        if (!firstValidationMsg) firstValidationMsg = msgs[0];
+                        if (span) {
+                            span.innerText = msgs[0];
+                            span.classList.remove('field-validation-valid');
+                            span.classList.add('field-validation-error');
+                        }
+                    }
+                }
+            }
+
+            const errMsg = (json && json.message) || firstValidationMsg || (json && json.title) || `Request failed with status ${res.status}.`;
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show api-form-error-alert mb-3';
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.innerHTML = `<span>${escapeHtml(errMsg)}</span><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            form.prepend(alertDiv);
+            showToast(errMsg, 'error');
+        }
+    } catch (err) {
+        console.error('API submit error:', err);
+        showToast('Network error: ' + err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+        }
+    }
+};
+
 // Toast Notification Manager
 function showToast(message, type = 'success') {
     const container = document.getElementById('toastContainer');
@@ -104,6 +215,10 @@ document.addEventListener('input', function (e) {
     }
 });
 
+function getEntityApiPrefix(controller) {
+    return (controller || '').trim().toLowerCase();
+}
+
 // Global AJAX Status Toggle
 async function toggleStatus(controller, id, btnElement) {
     if (!id || id <= 0) return;
@@ -115,13 +230,12 @@ async function toggleStatus(controller, id, btnElement) {
     try {
         const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
         const token = tokenInput ? tokenInput.value : '';
+        const prefix = getEntityApiPrefix(controller);
 
-        let response = await fetch(`/api/${controller}/toggle-status/${id}`, {
+        let response = await window.apiFetch(`/api/${controller}/${prefix}_status_update`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
                 'RequestVerificationToken': token
             },
             body: JSON.stringify({ id: id })
@@ -251,18 +365,21 @@ async function deleteItem(controller, id, itemName, rowElement) {
     }
 
     try {
-        const tokenInput = document.querySelector('#globalAntiForgeryForm input[name="__RequestVerificationToken"]')
-            || document.querySelector('input[name="__RequestVerificationToken"]');
-        const token = tokenInput ? tokenInput.value : '';
-
         let isSuccess = false;
         let message = '';
 
-        try {
+        const prefix = getEntityApiPrefix(controller);
+        let apiRes = await window.apiFetch(`/api/${controller}/${prefix}_delete?id=${id}`, {
+            method: 'DELETE'
+        });
+
+        // Graceful fallback to MVC Delete route only if API route returned 404/405
+        if (!apiRes.ok && (apiRes.status === 404 || apiRes.status === 405)) {
+            const token = getAntiForgeryToken();
             const formData = new URLSearchParams();
             if (token) formData.append('__RequestVerificationToken', token);
 
-            const response = await fetch(`/${controller}/Delete/${id}`, {
+            apiRes = await fetch(`/${controller}/Delete/${id}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -271,39 +388,17 @@ async function deleteItem(controller, id, itemName, rowElement) {
                 },
                 body: formData.toString()
             });
-
-            if (response.ok) {
-                const json = await response.json().catch(() => null);
-                if (json) {
-                    isSuccess = json.success;
-                    message = json.message;
-                    if (json.stats && typeof window.updateExpenseUI === 'function') {
-                        window.updateExpenseUI(json.stats);
-                    }
-                }
-            }
-        } catch {
-            // fallback to API
         }
 
-        if (!isSuccess) {
-            const apiRes = await fetch(`/api/${controller}/delete-${controller.toLowerCase()}/${id}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ id: id })
-            });
-
-            if (apiRes.ok) {
-                const apiJson = await apiRes.json().catch(() => null);
-                if (apiJson) {
-                    isSuccess = apiJson.success !== undefined ? apiJson.success : (apiJson.Status && apiJson.Status.Code === 0);
-                    message = apiJson.message || (apiJson.Data && apiJson.Data.Message) || (apiJson.Status && apiJson.Status.ReturnMessage);
-                }
+        const apiJson = await apiRes.json().catch(() => null);
+        if (apiRes.ok && apiJson) {
+            isSuccess = apiJson.success !== undefined ? apiJson.success : (apiJson.Status && apiJson.Status.Code === 0);
+            message = apiJson.message || (apiJson.Data && apiJson.Data.Message) || (apiJson.Status && apiJson.Status.ReturnMessage);
+            if (apiJson.stats && typeof window.updateExpenseUI === 'function') {
+                window.updateExpenseUI(apiJson.stats);
             }
+        } else if (apiJson && apiJson.message) {
+            message = apiJson.message;
         }
 
         if (isSuccess) {
@@ -418,22 +513,8 @@ window.deleteCustomer = async function (id, name, rowElement) {
     }
 
     try {
-        const tokenInput = document.querySelector('#customerAntiForgeryForm input[name="__RequestVerificationToken"]')
-            || document.querySelector('input[name="__RequestVerificationToken"]');
-        const token = tokenInput ? tokenInput.value : '';
-
-        const formData = new URLSearchParams();
-        formData.append('id', id);
-        if (token) formData.append('__RequestVerificationToken', token);
-
-        const response = await fetch(`/Customer/Delete/${id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'RequestVerificationToken': token
-            },
-            body: formData.toString()
+        const response = await window.apiFetch(`/api/Customer/customer_delete?id=${id}`, {
+            method: 'DELETE'
         });
 
         const json = await response.json().catch(() => null);
@@ -536,22 +617,8 @@ window.deleteSupplier = async function (id, name, rowElement) {
     }
 
     try {
-        const tokenInput = document.querySelector('#supplierAntiForgeryForm input[name="__RequestVerificationToken"]')
-            || document.querySelector('input[name="__RequestVerificationToken"]');
-        const token = tokenInput ? tokenInput.value : '';
-
-        const formData = new URLSearchParams();
-        formData.append('id', id);
-        if (token) formData.append('__RequestVerificationToken', token);
-
-        const response = await fetch(`/Supplier/Delete/${id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'RequestVerificationToken': token
-            },
-            body: formData.toString()
+        const response = await window.apiFetch(`/api/Supplier/supplier_delete?id=${id}`, {
+            method: 'DELETE'
         });
 
         const json = await response.json().catch(() => null);
@@ -665,6 +732,38 @@ async function spaNavigate(url, pushState = true) {
 
             updateActiveNav(url);
             executeInlineScripts(mainContent);
+
+            // Execute page-specific @section Scripts inside #pageScripts so SPA-navigated pages have full API handlers
+            const oldPageScripts = document.getElementById('pageScripts');
+            const newPageScripts = doc.getElementById('pageScripts');
+            if (oldPageScripts && newPageScripts) {
+                oldPageScripts.innerHTML = '';
+                const pageScriptNodes = Array.from(newPageScripts.querySelectorAll('script'));
+                for (const s of pageScriptNodes) {
+                    if (s.src) {
+                        const absSrc = new URL(s.src, window.location.origin).href;
+                        const alreadyLoaded = Array.from(document.querySelectorAll('script[src]')).some(existing => {
+                            try { return new URL(existing.src, window.location.origin).href === absSrc; } catch { return false; }
+                        });
+                        if (alreadyLoaded) continue;
+                        await new Promise((resolve) => {
+                            const ns = document.createElement('script');
+                            ns.src = absSrc;
+                            ns.onload = resolve;
+                            ns.onerror = resolve;
+                            oldPageScripts.appendChild(ns);
+                        });
+                    } else {
+                        const ns = document.createElement('script');
+                        ns.textContent = s.textContent;
+                        oldPageScripts.appendChild(ns);
+                    }
+                }
+            }
+
+            if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
+                window.jQuery.validator.unobtrusive.parse(mainContent);
+            }
         } else {
             window.location.href = url;
         }

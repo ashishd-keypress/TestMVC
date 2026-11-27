@@ -13,7 +13,7 @@
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Edit" asp-route-id="@Model.CustomerId" method="post">
+                    <form asp-action="Edit" asp-route-id="@Model.CustomerId" method="post" id="customerEditForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="CustomerId" />
                         <input type="hidden" asp-for="CurrentBalance" />
@@ -85,4 +85,32 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const form = document.getElementById('customerEditForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = parseInt(form.querySelector('[name="CustomerId"]').value, 10) || 0;
+                window.submitApiForm(form, {
+                    url: '/api/Customer/customer_detail_update',
+                    method: 'PUT',
+                    redirectUrl: '/Customer',
+                    buildPayload: function (f) {
+                        return {
+                            customerId: id,
+                            customerName: f.querySelector('[name="CustomerName"]').value.trim(),
+                            phone: f.querySelector('[name="Phone"]').value.trim(),
+                            email: f.querySelector('[name="Email"]').value.trim() || null,
+                            gstNumber: f.querySelector('[name="GSTNumber"]').value.trim() || null,
+                            openingBalance: parseFloat(f.querySelector('[name="OpeningBalance"]').value) || 0,
+                            currentBalance: parseFloat(f.querySelector('[name="CurrentBalance"]').value) || 0,
+                            address: f.querySelector('[name="Address"]').value.trim() || null,
+                            isActive: f.querySelector('#custActiveSwitch').checked
+                        };
+                    }
+                });
+            });
+        })();
+    </script>
 }

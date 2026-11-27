@@ -280,28 +280,50 @@
 
 @section Scripts {
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const counters = document.querySelectorAll('.counter');
-            counters.forEach(counter => {
-                const target = +counter.getAttribute('data-target') || 0;
-                let count = 0;
-                const speed = 25;
-                const increment = Math.max(1, Math.ceil(target / speed));
+        (function () {
+            function animateCounters() {
+                const counters = document.querySelectorAll('.counter');
+                counters.forEach(counter => {
+                    const target = +counter.getAttribute('data-target') || 0;
+                    let count = 0;
+                    const speed = 25;
+                    const increment = Math.max(1, Math.ceil(target / speed));
 
-                const updateCount = () => {
-                    count += increment;
-                    if (count < target) {
-                        counter.innerText = count;
-                        setTimeout(updateCount, 20);
-                    } else {
-                        counter.innerText = target;
+                    const updateCount = () => {
+                        count += increment;
+                        if (count < target) {
+                            counter.innerText = count;
+                            setTimeout(updateCount, 20);
+                        } else {
+                            counter.innerText = target;
+                        }
+                    };
+
+                    if (target > 0) {
+                        updateCount();
                     }
-                };
+                });
+            }
 
-                if (target > 0) {
-                    updateCount();
+            async function refreshDashboardSummaryApi() {
+                try {
+                    const res = await window.apiFetch('/api/Dashboard/dashboard_summary_get', { method: 'GET' });
+                    if (!res.ok) return;
+                    await res.json();
+                } catch {
+                    // Non-blocking API telemetry/refresh
                 }
-            });
-        });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    animateCounters();
+                    refreshDashboardSummaryApi();
+                });
+            } else {
+                animateCounters();
+                refreshDashboardSummaryApi();
+            }
+        })();
     </script>
 }

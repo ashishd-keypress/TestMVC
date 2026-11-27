@@ -22,16 +22,16 @@
     <!-- Search Bar -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="supplierSearchForm" class="row g-2 align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search supplier name, contact person, phone, GST..." />
+                        <input type="text" id="supplierSearchInput" name="search" value="@search" class="form-control" placeholder="Search supplier name, contact person, phone, GST..." />
                     </div>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">Search</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                    <button type="button" id="supplierResetBtn" class="btn btn-outline-secondary">Reset</button>
                 </div>
             </form>
         </div>
@@ -110,3 +110,85 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('supplierSearchForm');
+            const input = document.getElementById('supplierSearchInput');
+            const resetBtn = document.getElementById('supplierResetBtn');
+            const tbody = document.querySelector('#supplierTable tbody');
+
+            async function searchSuppliers(query) {
+                try {
+                    const res = await window.apiFetch(`/api/Supplier/supplier_list_get?search=${encodeURIComponent(query || '')}`, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success || !tbody) return;
+
+                    if (!json.data || json.data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr id="noRecordsRow">
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="bi bi-truck fs-1 d-block mb-2 text-muted"></i>
+                                    <em>${query ? `No suppliers found matching "${escapeHtml(query)}".` : 'No suppliers registered yet.'}</em>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        tbody.innerHTML = json.data.map((s, idx) => {
+                            const safeName = escapeHtml(s.supplierName || '');
+                            const safeNameArg = (s.supplierName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            const balClass = s.currentBalance > 0 ? 'text-danger fw-bold' : 'text-muted';
+                            const statusBtn = s.isActive
+                                ? `<button type="button" class="btn btn-sm btn-status-on px-2 py-1" onclick="toggleStatus('Supplier', ${s.supplierId}, this)" title="Click to turn OFF (Inactive)"><i class="bi bi-toggle-on me-1"></i> ON</button>`
+                                : `<button type="button" class="btn btn-sm btn-status-off px-2 py-1" onclick="toggleStatus('Supplier', ${s.supplierId}, this)" title="Click to turn ON (Active)"><i class="bi bi-toggle-off me-1"></i> OFF</button>`;
+
+                            return `
+                                <tr data-supplier-id="${s.supplierId}">
+                                    <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                                    <td class="fw-bold">${safeName}</td>
+                                    <td>${s.contactPerson ? escapeHtml(s.contactPerson) : '-'}</td>
+                                    <td><a href="tel:${escapeHtml(s.phone || '')}" class="text-decoration-none">${escapeHtml(s.phone || '')}</a></td>
+                                    <td class="text-muted">${s.email ? escapeHtml(s.email) : '-'}</td>
+                                    <td><small class="text-muted">${s.gstNumber ? escapeHtml(s.gstNumber) : '-'}</small></td>
+                                    <td class="text-end ${balClass}">₹${escapeHtml(s.currentBalanceFormatted)}</td>
+                                    <td class="text-center">${statusBtn}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex gap-2 justify-content-center align-items-center">
+                                            <a href="/Supplier/Edit/${s.supplierId}" class="btn btn-sm btn-outline-primary" title="Edit Supplier ${safeName}">
+                                                <i class="bi bi-pencil-square me-1"></i>Edit
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSupplier(${s.supplierId}, '${safeNameArg}', this.closest('tr'))" title="Delete Supplier ${safeName}">
+                                                <i class="bi bi-trash me-1"></i>Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+
+                    const newUrl = query ? `/Supplier?search=${encodeURIComponent(query)}` : '/Supplier';
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                } catch (err) {
+                    console.error('Supplier search API error:', err);
+                    showToast('Error searching suppliers: ' + err.message, 'error');
+                }
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    searchSuppliers(input ? input.value.trim() : '');
+                });
+            }
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (input) input.value = '';
+                    searchSuppliers('');
+                });
+            }
+        })();
+    </script>
+}

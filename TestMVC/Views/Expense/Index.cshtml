@@ -171,16 +171,16 @@
     <!-- Search Bar -->
     <div class="card shadow-sm mb-4 border-0">
         <div class="card-body py-3">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="expenseSearchForm" class="row g-2 align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search expense description, category..." />
+                        <input type="text" id="expenseSearchInput" name="search" value="@search" class="form-control" placeholder="Search expense description, category..." />
                     </div>
                 </div>
                 <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">Search</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                    <button type="submit" class="btn btn-primary" id="expenseSearchBtn">Search</button>
+                    <button type="button" class="btn btn-outline-secondary" id="expenseResetBtn">Reset</button>
                 </div>
             </form>
         </div>
@@ -352,5 +352,102 @@
                 tableRecordCount.innerText = `Showing ${stats.allTimeCount} record(s)`;
             }
         };
+
+        (function () {
+            const searchForm = document.getElementById('expenseSearchForm');
+            const searchInput = document.getElementById('expenseSearchInput');
+            const resetBtn = document.getElementById('expenseResetBtn');
+            const tbody = document.getElementById('expenseTableBody');
+            const countLabel = document.getElementById('tableExpenseRecordCount');
+
+            async function searchExpenses(query) {
+                const url = `/api/Expense/expense_list_get?search=${encodeURIComponent(query || '')}`;
+                try {
+                    const res = await window.apiFetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success) return;
+
+                    if (json.stats) {
+                        window.updateExpenseUI(json.stats);
+                    }
+
+                    if (countLabel) {
+                        countLabel.innerText = `Showing ${json.data.length} record(s)`;
+                    }
+
+                    if (tbody) {
+                        if (!json.data || json.data.length === 0) {
+                            tbody.innerHTML = `
+                                <tr id="noExpensesRow">
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
+                                        <em>${query ? `No shop expenses found matching "${escapeHtml(query)}".` : 'No shop expenses recorded yet.'}</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            tbody.innerHTML = json.data.map(e => {
+                                const safeDesc = escapeHtml(e.description || '');
+                                const safeDescArg = (e.description || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                const payHtml = e.paymentMethodName
+                                    ? `<small class="text-muted"><i class="bi bi-credit-card me-1"></i>${escapeHtml(e.paymentMethodName)}</small>`
+                                    : '';
+                                return `
+                                    <tr id="expense-row-${e.expenseId}" data-expense-id="${e.expenseId}" data-amount="${e.amount}" data-date="${e.expenseDate}">
+                                        <td class="fw-semibold text-nowrap">
+                                            <i class="bi bi-calendar-event me-1 text-muted"></i>
+                                            ${escapeHtml(e.expenseDate)}
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">${safeDesc}</div>
+                                            ${payHtml}
+                                        </td>
+                                        <td>
+                                            <span class="badge px-2.5 py-1.5" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;">
+                                                ${escapeHtml(e.categoryName || '')}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-bold text-danger fs-6 text-nowrap">
+                                            ₹${escapeHtml(e.amountFormatted)}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex gap-1">
+                                                <a href="/Expense/Edit/${e.expenseId}" class="btn btn-sm btn-outline-primary" title="Edit Expense">
+                                                    <i class="bi bi-pencil-square me-1"></i>Edit
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', ${e.expenseId}, '${safeDescArg}', this.closest('tr'))" title="Delete Expense">
+                                                    <i class="bi bi-trash me-1"></i>Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    }
+
+                    const newUrl = query ? `/Expense?search=${encodeURIComponent(query)}` : '/Expense';
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                } catch (err) {
+                    console.error('Expense search API error:', err);
+                    showToast('Error searching expenses: ' + err.message, 'error');
+                }
+            }
+
+            if (searchForm) {
+                searchForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    searchExpenses(searchInput ? searchInput.value.trim() : '');
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (searchInput) searchInput.value = '';
+                    searchExpenses('');
+                });
+            }
+        })();
     </script>
 }

@@ -30,14 +30,14 @@
         <div class="col-md-6 col-lg-3">
             <div class="kpi-card kpi-card-product">
                 <div class="kpi-label">Available Devices In Stock</div>
-                <div class="kpi-number">@inStockCount</div>
+                <div class="kpi-number" id="invInStockCount">@inStockCount</div>
                 <div class="small text-muted mt-2">Ready for retail sale</div>
             </div>
         </div>
         <div class="col-md-6 col-lg-3">
             <div class="kpi-card kpi-card-brand">
                 <div class="kpi-label">Total In-Stock Valuation</div>
-                <div class="kpi-number fs-3">₹@totalStockValue.ToString("N2")</div>
+                <div class="kpi-number fs-3" id="invTotalStockValue">₹@totalStockValue.ToString("N2")</div>
                 <div class="small text-muted mt-2">Based on purchase cost</div>
             </div>
         </div>
@@ -46,15 +46,15 @@
     <!-- Filter Bar -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="inventoryFilterForm" class="row g-2 align-items-center">
                 <div class="col-md-4">
                     <div class="input-group">
                         <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" value="@search" class="form-control" placeholder="Search IMEI 1, IMEI 2, Serial, Model..." />
+                        <input type="text" id="invSearchInput" name="search" value="@search" class="form-control" placeholder="Search IMEI 1, IMEI 2, Serial, Model..." />
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <select name="status" class="form-select">
+                    <select id="invStatusSelect" name="status" class="form-select">
                         <option value="">-- All Statuses --</option>
                         <option value="1" selected="@(selectedStatus == 1)">In Stock (Available)</option>
                         <option value="2" selected="@(selectedStatus == 2)">Reserved</option>
@@ -65,7 +65,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select name="productId" class="form-select">
+                    <select id="invProductSelect" name="productId" class="form-select">
                         <option value="">-- All Phone Models --</option>
                         @foreach (var p in products)
                         {
@@ -75,7 +75,7 @@
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">Filter</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                    <button type="button" id="invResetBtn" class="btn btn-outline-secondary">Reset</button>
                 </div>
             </form>
         </div>
@@ -83,7 +83,7 @@
 
     <!-- Inventory Table -->
     <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover table-bordered align-middle mb-0">
+        <table class="table table-hover table-bordered align-middle mb-0" id="inventoryTable">
             <thead class="table-light">
                 <tr>
                     <th style="width: 70px;" class="text-center">Sr. No.</th>
@@ -176,3 +176,109 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('inventoryFilterForm');
+            const searchInput = document.getElementById('invSearchInput');
+            const statusSelect = document.getElementById('invStatusSelect');
+            const productSelect = document.getElementById('invProductSelect');
+            const resetBtn = document.getElementById('invResetBtn');
+            const tbody = document.querySelector('#inventoryTable tbody');
+
+            async function filterInventory() {
+                const params = new URLSearchParams();
+                const s = searchInput ? searchInput.value.trim() : '';
+                const st = statusSelect ? statusSelect.value : '';
+                const pid = productSelect ? productSelect.value : '';
+                if (s) params.set('search', s);
+                if (st) params.set('status', st);
+                if (pid) params.set('productId', pid);
+
+                const qs = params.toString();
+                try {
+                    const res = await window.apiFetch(`/api/Inventory/inventory_list_get${qs ? '?' + qs : ''}`, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success) return;
+
+                    const elStock = document.getElementById('invInStockCount');
+                    const elVal = document.getElementById('invTotalStockValue');
+                    if (elStock && json.inStockCount !== undefined) elStock.innerText = json.inStockCount;
+                    if (elVal && json.totalStockValueFormatted !== undefined) elVal.innerText = '₹' + json.totalStockValueFormatted;
+
+                    if (tbody) {
+                        if (!json.data || json.data.length === 0) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        <i class="bi bi-phone fs-1 d-block mb-2 text-muted"></i>
+                                        <em>No device records found matching filter criteria.</em>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            tbody.innerHTML = json.data.map((d, idx) => {
+                                const secondary = d.imei2
+                                    ? `<code class="px-2 py-1 rounded bg-light border small text-muted">${escapeHtml(d.imei2)}</code>`
+                                    : (d.serialNumber ? `<span class="small text-muted">SN: ${escapeHtml(d.serialNumber)}</span>` : `<span class="text-muted">-</span>`);
+
+                                let badge = `<span class="badge bg-danger px-2 py-1">${escapeHtml(d.statusName)}</span>`;
+                                if (d.currentStatus === 1) badge = `<span class="badge-status-pill badge-status-active"><span class="status-dot"></span> In Stock</span>`;
+                                else if (d.currentStatus === 3) badge = `<span class="badge bg-primary px-2 py-1">Sold</span>`;
+                                else if (d.currentStatus === 4) badge = `<span class="badge bg-warning text-dark px-2 py-1">Returned</span>`;
+                                else if (d.currentStatus === 5) badge = `<span class="badge bg-info text-dark px-2 py-1">Under Repair</span>`;
+
+                                return `
+                                    <tr>
+                                        <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                                        <td>
+                                            <div class="fw-bold">${escapeHtml(d.productName || '')}</div>
+                                            <div class="small text-muted">
+                                                <span class="badge bg-secondary-subtle text-secondary me-1">${escapeHtml(d.brand || '')}</span>
+                                                <span>${escapeHtml(d.ram || '-')} / ${escapeHtml(d.storage || '-')} &bull; ${escapeHtml(d.color || '-')}</span>
+                                            </div>
+                                        </td>
+                                        <td><code class="px-2 py-1 rounded bg-light border fw-bold text-dark">${escapeHtml(d.imei1 || '')}</code></td>
+                                        <td>${secondary}</td>
+                                        <td class="text-end">₹${escapeHtml(d.costPriceFormatted)}</td>
+                                        <td class="text-end fw-bold text-primary">₹${escapeHtml(d.sellingPriceFormatted)}</td>
+                                        <td class="text-center">${badge}</td>
+                                        <td class="small text-muted">${escapeHtml(d.createdDate || '')}</td>
+                                        <td class="text-center">
+                                            <a href="/Inventory/Details/${d.deviceUnitId}" class="btn btn-sm btn-outline-primary" title="Device Details">
+                                                <i class="bi bi-info-circle"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    }
+
+                    const newUrl = qs ? `/Inventory?${qs}` : '/Inventory';
+                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                } catch (err) {
+                    console.error('Inventory search API error:', err);
+                    showToast('Error filtering inventory: ' + err.message, 'error');
+                }
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    filterInventory();
+                });
+            }
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (searchInput) searchInput.value = '';
+                    if (statusSelect) statusSelect.value = '';
+                    if (productSelect) productSelect.value = '';
+                    filterInventory();
+                });
+            }
+        })();
+    </script>
+}

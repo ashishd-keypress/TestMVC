@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using TestMVC.Interface;
+using TestMVC.Models;
 using TestMVC.Models.ReqRes;
 using Utility;
 
@@ -16,10 +19,36 @@ namespace TestMVC.Controllers.Api
     public class BrandController : ControllerBase
     {
         private readonly IBrandService _brandService;
+        private readonly IWebHostEnvironment _env;
 
-        public BrandController(IBrandService brandService)
+        public BrandController(IBrandService brandService, IWebHostEnvironment env)
         {
             _brandService = brandService;
+            _env = env;
+        }
+
+        [HttpGet]
+        [Route("")]
+        [Route("brand_list_get")]
+        [Route("search")]
+        public async Task<IActionResult> Search([FromQuery] string? search)
+        {
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (brandsRes, total, err) = await _brandService.GetBrand(new GetBrandReq { SearchText = search, PageSize = 100, UserId = currentUserId });
+            return Ok(new
+            {
+                success = string.IsNullOrEmpty(err),
+                data = brandsRes.Select(b => new
+                {
+                    brandId = b.BrandId,
+                    brandName = b.BrandName,
+                    imageUrl = b.ImageUrl,
+                    isActive = b.IsActive,
+                    userId = b.UserId,
+                    createdDate = b.CreatedDate.HasValue ? b.CreatedDate.Value.ToString("yyyy-MM-dd hh:mm tt") : "-"
+                }),
+                totalRecords = total
+            });
         }
 
         [HttpPost]
@@ -229,10 +258,11 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
+        [Route("brand_status_update")]
         [Route("toggle-status")]
         [Route("toggle-status/{id}")]
         [Route("ToggleStatus/{id}")]
-        public async Task<IActionResult> ToggleStatus([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ToggleStatusReq? model, int? id)
+        public async Task<IActionResult> ToggleStatus([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ToggleStatusReq? model, [FromQuery(Name = "id")] int? queryId = null, int? id = null)
         {
             DateTime reqDateTime = DateTime.UtcNow;
             string StrSystemError = "NO SYSTEM ERROR.";
@@ -244,7 +274,11 @@ namespace TestMVC.Controllers.Api
             int TotalRecords = 0;
 
             model ??= new ToggleStatusReq();
-            if (id.HasValue && id.Value > 0)
+            if ((queryId ?? 0) > 0)
+            {
+                model.Id = queryId!.Value;
+            }
+            else if (id.HasValue && id.Value > 0)
             {
                 model.Id = id.Value;
             }
@@ -292,10 +326,130 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
+        [Route("brand_detail_create")]
+        [Route("save-form")]
+        public async Task<IActionResult> SaveForm([FromForm] Brand brand)
+        {
+            var (imgValid, imgErr) = FileHelper.ValidateImage(brand.ImageFile, isRequired: true);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.ToDictionary(
+                    k => k.Key,
+                    v => v.Value?.Errors.Select(e => e.ErrorMessage).ToArray() ?? Array.Empty<string>()
+                );
+                return BadRequest(new { success = false, message = imgErr ?? "Validation failed.", errors });
+            }
+
+            string? savedImageUrl = null;
+            if (brand.ImageFile != null && brand.ImageFile.Length > 0)
+            {
+                savedImageUrl = await FileHelper.SaveImageAsync(brand.ImageFile, _env, "brands");
+            }
+
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (success, _, err) = await _brandService.SaveBrand(new SaveBrandReq
+            {
+                BrandId = 0,
+                BrandName = brand.BrandName,
+                ImageUrl = savedImageUrl,
+                IsActive = brand.IsActive,
+                UserId = currentUserId
+            });
+
+            if (success)
+            {
+                return StatusCode(201, new { success = true, message = "Brand added successfully.", redirectUrl = "/Brand" });
+            }
+
+            if (!string.IsNullOrEmpty(savedImageUrl))
+            {
+                FileHelper.DeleteImage(savedImageUrl, _env);
+            }
+
+            string errorMsg = !string.IsNullOrEmpty(err) && !err.StartsWith("{")
+                ? err
+                : "Unable to add brand. Please check the entered details and try again.";
+            return BadRequest(new { success = false, message = errorMsg });
+        }
+
+        [HttpPut]
+        [HttpPost]
+        [Route("brand_detail_update")]
+        [Route("update-form")]
+        [Route("update-form/{id:int}")]
+        public async Task<IActionResult> UpdateForm([FromForm] Brand brand, [FromQuery(Name = "id")] int? queryId = null, int id = 0)
+        {
+            int explicitId = (queryId ?? 0) > 0 ? queryId!.Value : id;
+            int targetId = explicitId > 0 ? explicitId : brand.BrandId;
+            if (targetId <= 0 || (explicitId > 0 && brand.BrandId > 0 && explicitId != brand.BrandId))
+            {
+                return BadRequest(new { success = false, message = "Invalid brand ID." });
+            }
+
+            brand.BrandId = targetId;
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var (existing, _, _) = await _brandService.GetBrandById(new GetBrandByIdReq { BrandId = targetId, UserId = currentUserId });
+            if (existing == null)
+            {
+                return NotFound(new { success = false, message = "Brand not found." });
+            }
+
+            bool hasExisting = !string.IsNullOrEmpty(existing.ImageUrl);
+            var (imgValid, imgErr) = FileHelper.ValidateImage(brand.ImageFile, isRequired: !hasExisting);
+            if (!imgValid)
+            {
+                ModelState.AddModelError("ImageFile", imgErr!);
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.ToDictionary(
+                    k => k.Key,
+                    v => v.Value?.Errors.Select(e => e.ErrorMessage).ToArray() ?? Array.Empty<string>()
+                );
+                return BadRequest(new { success = false, message = imgErr ?? "Validation failed.", errors });
+            }
+
+            string finalImageUrl = existing.ImageUrl ?? string.Empty;
+            if (brand.ImageFile != null && brand.ImageFile.Length > 0)
+            {
+                finalImageUrl = await FileHelper.SaveImageAsync(brand.ImageFile, _env, "brands");
+                FileHelper.DeleteImage(existing.ImageUrl, _env);
+            }
+
+            var (success, _, err) = await _brandService.SaveBrand(new SaveBrandReq
+            {
+                BrandId = brand.BrandId,
+                BrandName = brand.BrandName,
+                ImageUrl = finalImageUrl,
+                IsActive = brand.IsActive,
+                UserId = currentUserId
+            });
+
+            if (success)
+            {
+                return Ok(new { success = true, message = "Brand updated successfully.", redirectUrl = "/Brand" });
+            }
+
+            string errorMsg = !string.IsNullOrEmpty(err) && !err.StartsWith("{")
+                ? err
+                : "Unable to update brand. Please check the entered details and try again.";
+            return BadRequest(new { success = false, message = errorMsg });
+        }
+
+        [HttpDelete]
+        [HttpPost]
+        [Route("brand_delete")]
+        [Route("{id:int}")]
         [Route("delete-brand")]
         [Route("delete-brand/{id}")]
         [Route("Delete/{id}")]
-        public async Task<IActionResult> DeleteBrand([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DeleteReq? model, int? id)
+        public async Task<IActionResult> DeleteBrand([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DeleteReq? model, [FromQuery(Name = "id")] int? queryId = null, int? id = null)
         {
             DateTime reqDateTime = DateTime.UtcNow;
             string StrSystemError = "NO SYSTEM ERROR.";
@@ -307,9 +461,13 @@ namespace TestMVC.Controllers.Api
             int TotalRecords = 0;
 
             model ??= new DeleteReq();
-            if (id.HasValue && id.Value > 0)
+            if ((queryId ?? 0) > 0)
             {
-                model.Id = id.Value;
+                model.Id = queryId!.Value;
+            }
+            else if ((id ?? 0) > 0)
+            {
+                model.Id = id!.Value;
             }
             model.UserId ??= Utility.Helper.GetUserId(User);
 

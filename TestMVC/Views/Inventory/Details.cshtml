@@ -42,7 +42,7 @@
                     <div class="row gy-3 mb-4">
                         <div class="col-6">
                             <label class="small text-muted d-block">Current Status</label>
-                            <span class="badge-status-pill badge-status-active mt-1">@Model.StatusName</span>
+                            <span class="badge-status-pill badge-status-active mt-1" id="deviceStatusBadge">@Model.StatusName</span>
                         </div>
                         <div class="col-6">
                             <label class="small text-muted d-block">Serial Number</label>
@@ -66,7 +66,7 @@
                         </div>
                         <div class="col-12">
                             <label class="small text-muted d-block">Notes</label>
-                            <span class="text-muted">@(string.IsNullOrEmpty(Model.Notes) ? "None" : Model.Notes)</span>
+                            <span class="text-muted" id="deviceNotesLabel">@(string.IsNullOrEmpty(Model.Notes) ? "None" : Model.Notes)</span>
                         </div>
                     </div>
 
@@ -74,12 +74,12 @@
 
                     <!-- Status Changer Form -->
                     <h6 class="fw-bold mb-3">Update Device Status</h6>
-                    <form asp-action="UpdateStatus" method="post" class="row g-2 align-items-center">
+                    <form asp-action="UpdateStatus" method="post" id="deviceStatusForm" class="row g-2 align-items-center">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.DeviceUnitId" />
                         
                         <div class="col-md-5">
-                            <select name="status" class="form-select">
+                            <select name="status" id="deviceStatusSelect" class="form-select">
                                 <option value="1" selected="@(Model.CurrentStatus == 1)">1 - In Stock (Available)</option>
                                 <option value="2" selected="@(Model.CurrentStatus == 2)">2 - Reserved</option>
                                 <option value="3" selected="@(Model.CurrentStatus == 3)">3 - Sold</option>
@@ -89,7 +89,7 @@
                             </select>
                         </div>
                         <div class="col-md-5">
-                            <input type="text" name="notes" class="form-control" placeholder="Optional remark/reason..." />
+                            <input type="text" name="notes" id="deviceNotesInput" class="form-control" placeholder="Optional remark/reason..." />
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">Update</button>
@@ -100,3 +100,38 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('deviceStatusForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = parseInt(form.querySelector('[name="id"]').value, 10) || 0;
+                window.submitApiForm(form, {
+                    url: '/api/Inventory/inventory_status_update',
+                    method: 'PUT',
+                    buildPayload: function (f) {
+                        return {
+                            id: id,
+                            status: parseInt(f.querySelector('#deviceStatusSelect').value, 10) || 1,
+                            notes: f.querySelector('#deviceNotesInput').value.trim() || null
+                        };
+                    },
+                    onSuccess: function (json) {
+                        const badge = document.getElementById('deviceStatusBadge');
+                        const notesLbl = document.getElementById('deviceNotesLabel');
+                        if (badge && json.data && json.data.statusName) {
+                            badge.innerText = json.data.statusName;
+                        }
+                        if (notesLbl && json.data) {
+                            notesLbl.innerText = json.data.notes || 'None';
+                        }
+                        showToast(json.message || 'Device status updated successfully.', 'success');
+                    }
+                });
+            });
+        })();
+    </script>
+}

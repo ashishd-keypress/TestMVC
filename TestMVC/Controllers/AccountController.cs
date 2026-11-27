@@ -17,6 +17,14 @@ namespace TestMVC.Controllers
             _authService = authService;
         }
 
+        // GET: /Account
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult Index()
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
         // GET: /Account/Login
         [HttpGet]
         [AllowAnonymous]

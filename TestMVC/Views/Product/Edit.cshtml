@@ -21,7 +21,7 @@
                         </div>
                     }
 
-                    <form asp-action="Edit" asp-route-id="@Model.ProductId" method="post" enctype="multipart/form-data">
+                    <form asp-action="Edit" asp-route-id="@Model.ProductId" method="post" enctype="multipart/form-data" id="productEditForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="ProductId" />
                         <input type="hidden" asp-for="ImageUrl" />
@@ -188,4 +188,20 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const form = document.getElementById('productEditForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = parseInt(form.querySelector('[name="ProductId"]').value, 10) || 0;
+                window.submitApiForm(form, {
+                    url: '/api/Product/product_detail_update',
+                    method: 'PUT',
+                    useFormData: true,
+                    redirectUrl: '/Product'
+                });
+            });
+        })();
+    </script>
 }

@@ -1,7 +1,7 @@
 ﻿/* ============================================================================
    Complete Self-Contained SQL Server Database Backup Script
    Database        : [Product]
-   Generated On    : 2026-11-26 18:01:42 +05:30
+   Generated On    : 2026-11-27 17:51:20 +05:30
    Compatibility   : 160 (auto-adapts if target SQL Server is older)
    Collation       : SQL_Latin1_General_CP1_CI_AS
    Tables          : 39
@@ -1273,29 +1273,31 @@ SET QUOTED_IDENTIFIER ON;
 SET NUMERIC_ROUNDABORT OFF;
 GO
 
--- Data for [dbo].[Brand] (5 row(s))
+-- Data for [dbo].[Brand] (6 row(s))
 SET IDENTITY_INSERT [dbo].[Brand] ON;
 INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (1, 'Apple', 0, 0, CAST(N'2026-11-05T15:41:02.680' AS DATETIME), 1, N'/uploads/brands/70375f3ed46f44ef94c4ee5ff9d4db70_639294702626339479.png', N'/uploads/brands/70375f3ed46f44ef94c4ee5ff9d4db70_639294702626339479.png');
 INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (2, 'Samsung', 1, 0, CAST(N'2026-11-05T17:18:57.860' AS DATETIME), 1, N'/uploads/brands/d7f3dd3ad3ca4096b6cbeacc62683309_639294761378288911.jpg', N'/uploads/brands/d7f3dd3ad3ca4096b6cbeacc62683309_639294761378288911.jpg');
 INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (3, 'One Plus', 1, 0, CAST(N'2026-11-05T17:19:48.220' AS DATETIME), 1, N'/uploads/brands/861bb27fc67a498b94d0efa8c0d53e28_639294761881964816.png', N'/uploads/brands/861bb27fc67a498b94d0efa8c0d53e28_639294761881964816.png');
 INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (4, 'Vivo', 1, 0, CAST(N'2026-11-05T17:20:08.963' AS DATETIME), 1, N'/uploads/brands/ef3fbccc679e495e8e6be8a1869a1c7d_639294762089471410.jpg', N'/uploads/brands/ef3fbccc679e495e8e6be8a1869a1c7d_639294762089471410.jpg');
 INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (5, 'Realme', 1, 0, CAST(N'2026-11-05T17:20:51.307' AS DATETIME), 1, N'/uploads/brands/fcf61f2c52cc4fbdaf4ebaebe503a224_639294762723829092.png', N'/uploads/brands/fcf61f2c52cc4fbdaf4ebaebe503a224_639294762723829092.png');
+INSERT INTO [dbo].[Brand] ([BrandId], [BrandName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (1002, 'Test brand', 1, 0, CAST(N'2026-11-27T17:45:06.403' AS DATETIME), 2, N'/uploads/brands/60db6b1a5cdd4a2a9bd60041b7f94dc4_639313785063760614.jpg', N'/uploads/brands/60db6b1a5cdd4a2a9bd60041b7f94dc4_639313785063760614.jpg');
 SET IDENTITY_INSERT [dbo].[Brand] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Brand', RESEED, 1001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Brand', RESEED, 1002) WITH NO_INFOMSGS;
 GO
 
--- Data for [dbo].[Category] (4 row(s))
+-- Data for [dbo].[Category] (5 row(s))
 SET IDENTITY_INSERT [dbo].[Category] ON;
 INSERT INTO [dbo].[Category] ([CategoryId], [CategoryName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (1, 'Smartphones', 1, 0, CAST(N'2026-11-05T15:42:15.427' AS DATETIME), 1, N'/uploads/categories/14e4dbc7583e4a4e9637eca2851937d7_639294703354028734.webp', N'/uploads/categories/14e4dbc7583e4a4e9637eca2851937d7_639294703354028734.webp');
 INSERT INTO [dbo].[Category] ([CategoryId], [CategoryName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (2, 'iPhones', 1, 0, CAST(N'2026-11-05T17:26:20.420' AS DATETIME), 1, N'/uploads/categories/8afd7c36a37c4222b0f688c6cfdccc78_639294765799812932.jpg', N'/uploads/categories/8afd7c36a37c4222b0f688c6cfdccc78_639294765799812932.jpg');
 INSERT INTO [dbo].[Category] ([CategoryId], [CategoryName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (3, 'Gaming Smartphones', 1, 0, CAST(N'2026-11-05T17:29:24.547' AS DATETIME), 1, N'/uploads/categories/3a8a10c24eb1448082452d55f0407191_639294767645267385.jpg', N'/uploads/categories/3a8a10c24eb1448082452d55f0407191_639294767645267385.jpg');
 INSERT INTO [dbo].[Category] ([CategoryId], [CategoryName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (4, 'Foldable Smartphones', 1, 0, CAST(N'2026-11-05T17:30:25.820' AS DATETIME), 1, N'/uploads/categories/eea1eb0fe2b143219aacb6681c50aaaf_639294769245625752.webp', N'/uploads/categories/eea1eb0fe2b143219aacb6681c50aaaf_639294769245625752.webp');
+INSERT INTO [dbo].[Category] ([CategoryId], [CategoryName], [IsActive], [IsDelete], [CreatedDate], [UserId], [ImageUrl], [Image]) VALUES (1002, 'Test Category', 1, 0, CAST(N'2026-11-27T17:45:24.567' AS DATETIME), 2, N'/uploads/categories/8f5feaac69ab47c883e7645b63a91805_639313785245163977.png', N'/uploads/categories/8f5feaac69ab47c883e7645b63a91805_639313785245163977.png');
 SET IDENTITY_INSERT [dbo].[Category] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Category', RESEED, 1001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Category', RESEED, 1002) WITH NO_INFOMSGS;
 GO
 
 -- Data for [dbo].[Company] (1 row(s))
@@ -1307,14 +1309,15 @@ GO
 DBCC CHECKIDENT (N'dbo.Company', RESEED, 1) WITH NO_INFOMSGS;
 GO
 
--- Data for [dbo].[Customer] (2 row(s))
+-- Data for [dbo].[Customer] (3 row(s))
 SET IDENTITY_INSERT [dbo].[Customer] ON;
-INSERT INTO [dbo].[Customer] ([CustomerId], [CustomerName], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (1, N'Vijay Sharma', N'989801122', N'vijay.sharma@example.com', N'24AAAPS9876Q1Z2', N'12, Shanti Kunj Society, Satellite, Ahmedabad', 20.00, 0.00, 1, 0, CAST(N'2026-11-05T16:25:10.3800000' AS DATETIME2(7)), 1);
-INSERT INTO [dbo].[Customer] ([CustomerId], [CustomerName], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (3, N'Umesh', N'9876543210', N'umesh23@gmail.com', NULL, NULL, 0.00, 0.00, 1, 0, CAST(N'2026-11-05T17:02:10.1666667' AS DATETIME2(7)), 1);
+INSERT INTO [dbo].[Customer] ([CustomerId], [CustomerName], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (1, N'Vijay Sharma', N'989801122', N'vijay.sharma@example.com', N'24AAAPS9876Q1Z2', N'12, Shanti Kunj Society, Satellite, Ahmedabad', 20.00, 0.00, 0, 0, CAST(N'2026-11-05T16:25:10.3800000' AS DATETIME2(7)), 1);
+INSERT INTO [dbo].[Customer] ([CustomerId], [CustomerName], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (3, N'Umesh', N'9876543210', N'umesh23@gmail.com', NULL, NULL, 0.00, 0.00, 0, 0, CAST(N'2026-11-05T17:02:10.1666667' AS DATETIME2(7)), 1);
+INSERT INTO [dbo].[Customer] ([CustomerId], [CustomerName], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (10002, N'Demo12', N'7845965214', NULL, NULL, NULL, 200.00, 200.00, 1, 0, CAST(N'2026-11-27T17:32:16.6200000' AS DATETIME2(7)), 2);
 SET IDENTITY_INSERT [dbo].[Customer] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Customer', RESEED, 10001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Customer', RESEED, 10002) WITH NO_INFOMSGS;
 GO
 
 -- Data for [dbo].[ExpenseCategory] (8 row(s))
@@ -1349,14 +1352,15 @@ GO
 DBCC CHECKIDENT (N'dbo.PaymentMethod', RESEED, 1001) WITH NO_INFOMSGS;
 GO
 
--- Data for [dbo].[Product] (2 row(s))
+-- Data for [dbo].[Product] (3 row(s))
 SET IDENTITY_INSERT [dbo].[Product] ON;
 INSERT INTO [dbo].[Product] ([ProductId], [Name], [Price], [Size], [IsActive], [IsDelete], [CreatedBY], [CreatedDate], [ModifiedBy], [ModifiedDate], [CategoryId], [BrandId], [UserId], [ImageUrl], [Image], [ProductModelId], [SKU], [Barcode], [RAM], [Storage], [Color], [MRP], [SellingPrice], [WarrantyMonths], [TrackIMEI], [ImagePath]) VALUES (1, 'iphone 16 ', '89900', '', 1, 0, 1, CAST(N'2026-11-05T15:44:34.920' AS DATETIME), NULL, NULL, 1, 1, 1, N'/uploads/products/a043fb71734d481896a96112b35ef5ee_639294704718369161.webp', N'/uploads/products/a043fb71734d481896a96112b35ef5ee_639294704718369161.webp', NULL, N'APL-IP16-256-BLU', N'8901234567890', N'8 GB', N'256 GB', N'Ultramarine Blue', 89900.00, 89900.00, 12, 1, NULL);
 INSERT INTO [dbo].[Product] ([ProductId], [Name], [Price], [Size], [IsActive], [IsDelete], [CreatedBY], [CreatedDate], [ModifiedBy], [ModifiedDate], [CategoryId], [BrandId], [UserId], [ImageUrl], [Image], [ProductModelId], [SKU], [Barcode], [RAM], [Storage], [Color], [MRP], [SellingPrice], [WarrantyMonths], [TrackIMEI], [ImagePath]) VALUES (2, 'One Plus Nord CE 3  Lite 5g', '20000', '', 1, 0, 1, CAST(N'2026-11-05T17:42:41.310' AS DATETIME), NULL, NULL, 1, 3, 1, N'/uploads/products/5aa1992b596947e195b855d8ffa8dcda_639294775612739407.webp', N'/uploads/products/5aa1992b596947e195b855d8ffa8dcda_639294775612739407.webp', NULL, NULL, NULL, N'8 GB', N'128 GB', N'Pastel Lime', 20000.00, 20000.00, 12, 1, N'/uploads/products/5aa1992b596947e195b855d8ffa8dcda_639294775612739407.webp');
+INSERT INTO [dbo].[Product] ([ProductId], [Name], [Price], [Size], [IsActive], [IsDelete], [CreatedBY], [CreatedDate], [ModifiedBy], [ModifiedDate], [CategoryId], [BrandId], [UserId], [ImageUrl], [Image], [ProductModelId], [SKU], [Barcode], [RAM], [Storage], [Color], [MRP], [SellingPrice], [WarrantyMonths], [TrackIMEI], [ImagePath]) VALUES (1002, 'Test Product', '15000', '', 1, 0, 2, CAST(N'2026-11-27T17:46:14.237' AS DATETIME), NULL, NULL, 1002, 1002, 2, N'/uploads/products/6163381304ae496e9aec372edd203d1a_639313785739436051.jpg', N'/uploads/products/6163381304ae496e9aec372edd203d1a_639313785739436051.jpg', NULL, NULL, NULL, N'8 GB', N'128 GB', N'Teal', 14500.00, 15000.00, 12, 1, N'/uploads/products/6163381304ae496e9aec372edd203d1a_639313785739436051.jpg');
 SET IDENTITY_INSERT [dbo].[Product] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Product', RESEED, 1001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Product', RESEED, 1002) WITH NO_INFOMSGS;
 GO
 
 -- Data for [dbo].[Role] (6 row(s))
@@ -1373,21 +1377,22 @@ GO
 DBCC CHECKIDENT (N'dbo.Role', RESEED, 10001) WITH NO_INFOMSGS;
 GO
 
--- Data for [dbo].[Supplier] (3 row(s))
+-- Data for [dbo].[Supplier] (4 row(s))
 SET IDENTITY_INSERT [dbo].[Supplier] ON;
 INSERT INTO [dbo].[Supplier] ([SupplierId], [SupplierName], [ContactPerson], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (1, N'Redington India Ltd (Apple Distributor)', N'Mahesh Patel', N'9825012345', N'orders@redington.in', N'24AAACR1234R1Z8', N'B-404, Tech Park, SG Highway, Ahmedabad', 0.00, 0.00, 1, 0, CAST(N'2026-11-05T16:25:10.3766667' AS DATETIME2(7)), 1);
 INSERT INTO [dbo].[Supplier] ([SupplierId], [SupplierName], [ContactPerson], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (2, N'Redington India Ltd (Apple Distributor)', N'Suresh Patel', N'45121221626', NULL, NULL, NULL, 20000.00, 0.00, 1, 0, CAST(N'2026-11-05T17:14:55.6466667' AS DATETIME2(7)), 1);
 INSERT INTO [dbo].[Supplier] ([SupplierId], [SupplierName], [ContactPerson], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (3, N'Gujarat LTD', N'Rajesh Kumar ', N'1238521269', N'chandu12@gmail.com', NULL, N'Anand vihar  , Delhi', 251.00, 40000.00, 1, 0, CAST(N'2026-11-05T17:46:45.9233333' AS DATETIME2(7)), 1);
+INSERT INTO [dbo].[Supplier] ([SupplierId], [SupplierName], [ContactPerson], [Phone], [Email], [GSTNumber], [Address], [OpeningBalance], [CurrentBalance], [IsActive], [IsDelete], [CreatedDate], [UserId]) VALUES (10002, N'TELECOM', N'Milan', N'14141414141', NULL, NULL, N'Surat', 5000.00, 5000.00, 1, 0, CAST(N'2026-11-27T17:48:53.4266667' AS DATETIME2(7)), 2);
 SET IDENTITY_INSERT [dbo].[Supplier] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Supplier', RESEED, 10001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Supplier', RESEED, 10002) WITH NO_INFOMSGS;
 GO
 
 -- Data for [dbo].[Users] (2 row(s))
 SET IDENTITY_INSERT [dbo].[Users] ON;
-INSERT INTO [dbo].[Users] ([UserId], [Username], [UserPassword], [MobileNumber], [IsDelete], [CreatedDate], [LastLoginDate]) VALUES (1, N'Ashish@123', N'$2a$12$BeffaoYQA/dPtdaguK/8hOVbHe8e9l9.xsRp7z5k6leAmUQBoF/HS', N'9876543210', 0, CAST(N'2026-10-10T12:06:11.093' AS DATETIME), CAST(N'2026-11-24T10:32:41.127' AS DATETIME));
-INSERT INTO [dbo].[Users] ([UserId], [Username], [UserPassword], [MobileNumber], [IsDelete], [CreatedDate], [LastLoginDate]) VALUES (2, N'Test', N'$2a$12$c6vf8UrKg1ijrjLIILT15OFfnu1wBKJhQY0nqAYguNCjs4m4RQEtm', N'8574321485', 0, CAST(N'2026-10-10T13:05:08.120' AS DATETIME), CAST(N'2026-11-24T10:32:59.580' AS DATETIME));
+INSERT INTO [dbo].[Users] ([UserId], [Username], [UserPassword], [MobileNumber], [IsDelete], [CreatedDate], [LastLoginDate]) VALUES (1, N'Ashish@123', N'$2a$12$LduFWsm2AuQDGFt/ma0gDOqz2PAsmJ3dsBqH7.5zws1IKCW/lhidW', N'9876543210', 0, CAST(N'2026-10-10T12:06:11.093' AS DATETIME), CAST(N'2026-11-27T17:24:29.113' AS DATETIME));
+INSERT INTO [dbo].[Users] ([UserId], [Username], [UserPassword], [MobileNumber], [IsDelete], [CreatedDate], [LastLoginDate]) VALUES (2, N'Test', N'$2a$12$c6vf8UrKg1ijrjLIILT15OFfnu1wBKJhQY0nqAYguNCjs4m4RQEtm', N'8574321485', 0, CAST(N'2026-10-10T13:05:08.120' AS DATETIME), CAST(N'2026-11-27T17:31:24.600' AS DATETIME));
 SET IDENTITY_INSERT [dbo].[Users] OFF;
 GO
 
@@ -1414,7 +1419,7 @@ INSERT INTO [dbo].[Expense] ([ExpenseId], [ExpenseCategoryId], [BranchId], [Expe
 SET IDENTITY_INSERT [dbo].[Expense] OFF;
 GO
 
-DBCC CHECKIDENT (N'dbo.Expense', RESEED, 30001) WITH NO_INFOMSGS;
+DBCC CHECKIDENT (N'dbo.Expense', RESEED, 30003) WITH NO_INFOMSGS;
 GO
 
 -- Data for [dbo].[Purchase] (1 row(s))
@@ -2275,7 +2280,7 @@ GO
 -- ============================================================================
 -- RESTORE COMPLETE
 -- ============================================================================
-PRINT N'Database [Product] restored successfully: 39 tables, 46 foreign keys, 16 programmable objects, 61 total rows inserted.';
+PRINT N'Database [Product] restored successfully: 39 tables, 46 foreign keys, 16 programmable objects, 66 total rows inserted.';
 GO
 SET NOEXEC OFF;
 GO

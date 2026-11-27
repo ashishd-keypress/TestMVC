@@ -21,7 +21,7 @@
                         </div>
                     }
 
-                    <form asp-action="Edit" asp-route-id="@Model.BrandId" method="post" enctype="multipart/form-data">
+                    <form asp-action="Edit" asp-route-id="@Model.BrandId" method="post" enctype="multipart/form-data" id="brandEditForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="BrandId" />
                         <input type="hidden" asp-for="ImageUrl" />
@@ -103,4 +103,20 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const form = document.getElementById('brandEditForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = parseInt(form.querySelector('[name="BrandId"]').value, 10) || 0;
+                window.submitApiForm(form, {
+                    url: '/api/Brand/brand_detail_update',
+                    method: 'PUT',
+                    useFormData: true,
+                    redirectUrl: '/Brand'
+                });
+            });
+        })();
+    </script>
 }

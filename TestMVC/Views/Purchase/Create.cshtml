@@ -214,151 +214,175 @@
 
 @section Scripts {
     <script>
-        const purchaseItems = [];
+        (function () {
+            const purchaseItems = [];
 
-        function onPurProductChanged() {
-            const sel = document.getElementById('purProductSelect');
-            const opt = sel.options[sel.selectedIndex];
-            const imeiBox = document.getElementById('imeiInputBox');
-            const qtyInput = document.getElementById('purQty');
-            const costInput = document.getElementById('purUnitCost');
+            window.onPurProductChanged = function () {
+                const sel = document.getElementById('purProductSelect');
+                const opt = sel.options[sel.selectedIndex];
+                const imeiBox = document.getElementById('imeiInputBox');
+                const qtyInput = document.getElementById('purQty');
+                const costInput = document.getElementById('purUnitCost');
 
-            if (!opt.value) {
-                imeiBox.style.display = 'none';
-                return;
+                if (!opt.value) {
+                    imeiBox.style.display = 'none';
+                    return;
+                }
+
+                costInput.value = parseFloat(opt.getAttribute('data-cost')) || 0;
+                const track = opt.getAttribute('data-track') === '1';
+
+                if (track) {
+                    imeiBox.style.display = 'block';
+                    qtyInput.readOnly = true;
+                    window.updateQtyFromImeis();
+                } else {
+                    imeiBox.style.display = 'none';
+                    qtyInput.readOnly = false;
+                    qtyInput.value = 1;
+                }
+            };
+
+            window.updateQtyFromImeis = function () {
+                const lines = document.getElementById('purIMEIs').value
+                    .split(/[\r\n,]+/)
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0);
+                document.getElementById('purQty').value = Math.max(1, lines.length);
+            };
+
+            window.addPurchaseItem = function () {
+                const sel = document.getElementById('purProductSelect');
+                const opt = sel.options[sel.selectedIndex];
+                if (!opt || !opt.value) {
+                    showToast('Please select a product.', 'error');
+                    return;
+                }
+
+                const productId = parseInt(opt.value);
+                const productName = opt.getAttribute('data-name');
+                const unitCost = parseFloat(document.getElementById('purUnitCost').value) || 0;
+                const track = opt.getAttribute('data-track') === '1';
+                const imeiText = document.getElementById('purIMEIs').value.trim();
+                const qty = parseInt(document.getElementById('purQty').value) || 1;
+
+                if (track && !imeiText) {
+                    showToast('Please enter or scan at least one IMEI number for this tracked mobile device.', 'error');
+                    return;
+                }
+
+                purchaseItems.push({
+                    ProductId: productId,
+                    ProductName: productName,
+                    TrackIMEI: track,
+                    UnitCost: unitCost,
+                    Quantity: qty,
+                    Discount: 0,
+                    TaxAmount: 0,
+                    TotalAmount: unitCost * qty,
+                    IMEINumbers: imeiText
+                });
+
+                renderPurItems();
+
+                document.getElementById('purProductSelect').value = '';
+                document.getElementById('purUnitCost').value = '';
+                document.getElementById('purIMEIs').value = '';
+                document.getElementById('imeiInputBox').style.display = 'none';
+            };
+
+            window.removePurItem = function (index) {
+                purchaseItems.splice(index, 1);
+                renderPurItems();
+            };
+
+            function renderPurItems() {
+                const tbody = document.getElementById('purTableBody');
+                if (purchaseItems.length === 0) {
+                    tbody.innerHTML = `<tr id="emptyPurRow"><td colspan="7" class="text-center py-4 text-muted"><em>No products added to this purchase bill yet.</em></td></tr>`;
+                } else {
+                    tbody.innerHTML = purchaseItems.map((item, idx) => `
+                        <tr>
+                            <td class="text-muted small">${idx + 1}</td>
+                            <td class="fw-semibold">${escapeHtml(item.ProductName)}</td>
+                            <td>
+                                ${item.TrackIMEI ? `<small class="text-muted font-monospace">${item.IMEINumbers ? escapeHtml(item.IMEINumbers.replace(/\n/g, ', ')) : '-'}</small>` : '<span class="text-muted small">Accessory / Non-IMEI</span>'}
+                            </td>
+                            <td class="text-center">${item.Quantity}</td>
+                            <td class="text-end">₹${item.UnitCost.toFixed(2)}</td>
+                            <td class="text-end fw-bold">₹${item.TotalAmount.toFixed(2)}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removePurItem(${idx})">&times;</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                window.calculatePurTotals();
             }
 
-            costInput.value = parseFloat(opt.getAttribute('data-cost')) || 0;
-            const track = opt.getAttribute('data-track') === '1';
+            window.calculatePurTotals = function () {
+                const subTotal = purchaseItems.reduce((acc, curr) => acc + curr.TotalAmount, 0);
+                const discount = parseFloat(document.getElementById('purDiscount').value) || 0;
+                const tax = parseFloat(document.getElementById('purTax').value) || 0;
+                const grandTotal = Math.max(0, subTotal - discount + tax);
 
-            if (track) {
-                imeiBox.style.display = 'block';
-                qtyInput.readOnly = true;
-                updateQtyFromImeis();
-            } else {
-                imeiBox.style.display = 'none';
-                qtyInput.readOnly = false;
-                qtyInput.value = 1;
+                document.getElementById('purLblSubTotal').innerText = `₹${subTotal.toFixed(2)}`;
+                document.getElementById('purLblGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
+
+                document.getElementById('hiddenPurSubTotal').value = subTotal.toFixed(2);
+                document.getElementById('hiddenPurGrandTotal').value = grandTotal.toFixed(2);
+
+                const paidInput = document.getElementById('purPaidAmount');
+                if (paidInput.value === "0" || paidInput.getAttribute('data-user-edited') !== 'true') {
+                    paidInput.value = grandTotal.toFixed(2);
+                }
+
+                window.calculatePurDue();
+            };
+
+            window.calculatePurDue = function () {
+                const grandTotal = parseFloat(document.getElementById('hiddenPurGrandTotal').value) || 0;
+                const paidInput = document.getElementById('purPaidAmount');
+                paidInput.setAttribute('data-user-edited', 'true');
+                const paid = parseFloat(paidInput.value) || 0;
+                const due = Math.max(0, grandTotal - paid);
+
+                document.getElementById('purLblDue').innerText = `₹${due.toFixed(2)}`;
+                document.getElementById('hiddenPurDue').value = due.toFixed(2);
+            };
+
+            const form = document.getElementById('purchaseForm');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    if (purchaseItems.length === 0) {
+                        showToast('Please add at least one product item to inward.', 'error');
+                        return false;
+                    }
+                    document.getElementById('purchaseItemsJsonInput').value = JSON.stringify(purchaseItems);
+
+                    window.submitApiForm(form, {
+                        url: '/api/Purchase/purchase_detail_create',
+                        method: 'POST',
+                        buildPayload: function (f) {
+                            return {
+                                supplierId: parseInt(f.querySelector('[name="SupplierId"]').value, 10) || 0,
+                                invoiceNumber: f.querySelector('[name="InvoiceNumber"]').value.trim(),
+                                purchaseDate: f.querySelector('[name="PurchaseDate"]').value,
+                                subTotal: parseFloat(document.getElementById('hiddenPurSubTotal').value) || 0,
+                                discount: parseFloat(document.getElementById('purDiscount').value) || 0,
+                                taxAmount: parseFloat(document.getElementById('purTax').value) || 0,
+                                grandTotal: parseFloat(document.getElementById('hiddenPurGrandTotal').value) || 0,
+                                paidAmount: parseFloat(document.getElementById('purPaidAmount').value) || 0,
+                                dueAmount: parseFloat(document.getElementById('hiddenPurDue').value) || 0,
+                                notes: f.querySelector('[name="Notes"]').value.trim() || null,
+                                items: purchaseItems
+                            };
+                        }
+                    });
+                });
             }
-        }
-
-        function updateQtyFromImeis() {
-            const lines = document.getElementById('purIMEIs').value
-                .split(/[\r\n,]+/)
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-            document.getElementById('purQty').value = Math.max(1, lines.length);
-        }
-
-        function addPurchaseItem() {
-            const sel = document.getElementById('purProductSelect');
-            const opt = sel.options[sel.selectedIndex];
-            if (!opt || !opt.value) {
-                showToast('Please select a product.', 'error');
-                return;
-            }
-
-            const productId = parseInt(opt.value);
-            const productName = opt.getAttribute('data-name');
-            const unitCost = parseFloat(document.getElementById('purUnitCost').value) || 0;
-            const track = opt.getAttribute('data-track') === '1';
-            const imeiText = document.getElementById('purIMEIs').value.trim();
-            const qty = parseInt(document.getElementById('purQty').value) || 1;
-
-            if (track && !imeiText) {
-                showToast('Please enter or scan at least one IMEI number for this tracked mobile device.', 'error');
-                return;
-            }
-
-            purchaseItems.push({
-                ProductId: productId,
-                ProductName: productName,
-                TrackIMEI: track,
-                UnitCost: unitCost,
-                Quantity: qty,
-                Discount: 0,
-                TaxAmount: 0,
-                TotalAmount: unitCost * qty,
-                IMEINumbers: imeiText
-            });
-
-            renderPurItems();
-
-            // Reset inputs
-            document.getElementById('purProductSelect').value = '';
-            document.getElementById('purUnitCost').value = '';
-            document.getElementById('purIMEIs').value = '';
-            document.getElementById('imeiInputBox').style.display = 'none';
-        }
-
-        function removePurItem(index) {
-            purchaseItems.splice(index, 1);
-            renderPurItems();
-        }
-
-        function renderPurItems() {
-            const tbody = document.getElementById('purTableBody');
-            if (purchaseItems.length === 0) {
-                tbody.innerHTML = `<tr id="emptyPurRow"><td colspan="7" class="text-center py-4 text-muted"><em>No products added to this purchase bill yet.</em></td></tr>`;
-            } else {
-                tbody.innerHTML = purchaseItems.map((item, idx) => `
-                    <tr>
-                        <td class="text-muted small">${idx + 1}</td>
-                        <td class="fw-semibold">${item.ProductName}</td>
-                        <td>
-                            ${item.TrackIMEI ? `<small class="text-muted font-monospace">${item.IMEINumbers ? item.IMEINumbers.replace(/\n/g, ', ') : '-'}</small>` : '<span class="text-muted small">Accessory / Non-IMEI</span>'}
-                        </td>
-                        <td class="text-center">${item.Quantity}</td>
-                        <td class="text-end">₹${item.UnitCost.toFixed(2)}</td>
-                        <td class="text-end fw-bold">₹${item.TotalAmount.toFixed(2)}</td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removePurItem(${idx})">&times;</button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-
-            calculatePurTotals();
-        }
-
-        function calculatePurTotals() {
-            const subTotal = purchaseItems.reduce((acc, curr) => acc + curr.TotalAmount, 0);
-            const discount = parseFloat(document.getElementById('purDiscount').value) || 0;
-            const tax = parseFloat(document.getElementById('purTax').value) || 0;
-            const grandTotal = Math.max(0, subTotal - discount + tax);
-
-            document.getElementById('purLblSubTotal').innerText = `₹${subTotal.toFixed(2)}`;
-            document.getElementById('purLblGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
-
-            document.getElementById('hiddenPurSubTotal').value = subTotal.toFixed(2);
-            document.getElementById('hiddenPurGrandTotal').value = grandTotal.toFixed(2);
-
-            const paidInput = document.getElementById('purPaidAmount');
-            if (paidInput.value === "0" || paidInput.getAttribute('data-user-edited') !== 'true') {
-                paidInput.value = grandTotal.toFixed(2);
-            }
-
-            calculatePurDue();
-        }
-
-        function calculatePurDue() {
-            const grandTotal = parseFloat(document.getElementById('hiddenPurGrandTotal').value) || 0;
-            const paidInput = document.getElementById('purPaidAmount');
-            paidInput.setAttribute('data-user-edited', 'true');
-            const paid = parseFloat(paidInput.value) || 0;
-            const due = Math.max(0, grandTotal - paid);
-
-            document.getElementById('purLblDue').innerText = `₹${due.toFixed(2)}`;
-            document.getElementById('hiddenPurDue').value = due.toFixed(2);
-        }
-
-        document.getElementById('purchaseForm').addEventListener('submit', function (e) {
-            if (purchaseItems.length === 0) {
-                e.preventDefault();
-                showToast('Please add at least one product item to inward.', 'error');
-                return false;
-            }
-            document.getElementById('purchaseItemsJsonInput').value = JSON.stringify(purchaseItems);
-        });
+        })();
     </script>
 }

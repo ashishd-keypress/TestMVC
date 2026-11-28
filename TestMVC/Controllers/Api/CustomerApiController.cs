@@ -11,20 +11,18 @@ using TestMVC.Models.ReqRes;
 namespace TestMVC.Controllers.Api
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class CustomerController : ControllerBase
+    [Route("api/Customer")]
+    public class CustomerApiController : ControllerBase
     {
         private readonly ICustomerService _customerService;
 
-        public CustomerController(ICustomerService customerService)
+        public CustomerApiController(ICustomerService customerService)
         {
             _customerService = customerService;
         }
 
         [HttpGet]
-        [Route("")]
         [Route("customer_list_get")]
-        [Route("search")]
         public async Task<IActionResult> Search([FromQuery] string? search)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -53,7 +51,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("customer_detail_get")]
-        [Route("{id:long}")]
         public async Task<IActionResult> GetById([FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : (id ?? 0);
@@ -70,9 +67,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
-        [Route("")]
         [Route("customer_detail_create")]
-        [Route("create")]
         public async Task<IActionResult> Create([FromBody] Customer customer)
         {
             if (customer == null) return BadRequest(new { success = false, message = "Request body is required." });
@@ -117,11 +112,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPut]
-        [HttpPost]
         [Route("customer_detail_update")]
-        [Route("{id:long}")]
-        [Route("update/{id:long}")]
-        [Route("update")]
         public async Task<IActionResult> Update([FromBody] Customer customer, [FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             if (customer == null) return BadRequest(new { success = false, message = "Request body is required." });
@@ -184,9 +175,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpPost]
         [Route("customer_status_update")]
-        [Route("toggle-status")]
-        [Route("toggle-status/{id}")]
-        [Route("ToggleStatus/{id}")]
         public async Task<IActionResult> ToggleStatus([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ToggleStatusReq? model, [FromQuery(Name = "id")] int? queryId = null, int? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : ((id ?? 0) > 0 ? id!.Value : (model != null && model.Id > 0 ? model.Id : 0));
@@ -216,12 +204,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpDelete]
-        [HttpPost]
         [Route("customer_delete")]
-        [Route("{id:long}")]
-        [Route("delete-customer")]
-        [Route("delete-customer/{id}")]
-        [Route("Delete/{id}")]
         public async Task<IActionResult> Delete([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DeleteReq? model = null, [FromQuery(Name = "id")] long? queryId = null, long id = 0)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : (id > 0 ? id : (model != null && model.Id > 0 ? model.Id : 0));

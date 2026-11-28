@@ -14,20 +14,18 @@ namespace TestMVC.Controllers.Api
     }
 
     [ApiController]
-    [Route("api/[controller]")]
-    public class InventoryController : ControllerBase
+    [Route("api/Inventory")]
+    public class InventoryApiController : ControllerBase
     {
         private readonly IDeviceUnitService _deviceUnitService;
 
-        public InventoryController(IDeviceUnitService deviceUnitService)
+        public InventoryApiController(IDeviceUnitService deviceUnitService)
         {
             _deviceUnitService = deviceUnitService;
         }
 
         [HttpGet]
-        [Route("")]
         [Route("inventory_list_get")]
-        [Route("search")]
         public async Task<IActionResult> Search([FromQuery] string? search, [FromQuery] byte? status, [FromQuery] int? productId)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -68,7 +66,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("inventory_detail_get")]
-        [Route("{id:long}")]
         public async Task<IActionResult> GetById([FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : (id ?? 0);
@@ -86,8 +83,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("inventory_imei_search")]
-        [Route("search-imei")]
-        [Route("SearchImei")]
         public async Task<IActionResult> SearchImei([FromQuery] string imei)
         {
             if (string.IsNullOrWhiteSpace(imei))
@@ -126,8 +121,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("inventory_available_devices_get")]
-        [Route("available-by-product")]
-        [Route("AvailableByProduct")]
         public async Task<IActionResult> AvailableByProduct([FromQuery] int productId)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -146,10 +139,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPut]
-        [HttpPost]
         [Route("inventory_status_update")]
-        [Route("update-status/{id:long}")]
-        [Route("update-status")]
         public async Task<IActionResult> UpdateStatus([FromBody] UpdateDeviceStatusRequest request, [FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : ((id ?? 0) > 0 ? id!.Value : (request?.Id ?? 0));

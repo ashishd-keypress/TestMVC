@@ -13,9 +13,9 @@ namespace TestMVC.Service
             _expenseRepository = expenseRepository;
         }
 
-        public Task<List<Expense>> GetExpenses(string? search = null, int? userId = null)
+        public Task<List<Expense>> GetExpenses(string? search = null, int? userId = null, int? year = null, int? month = null, int? paymentMethodId = null, string? sortBy = null, string? sortOrder = null)
         {
-            return _expenseRepository.GetExpenses(search, userId);
+            return _expenseRepository.GetExpenses(search, userId, year, month, paymentMethodId, sortBy, sortOrder);
         }
 
         public Task<Expense?> GetExpenseById(long expenseId, int? userId = null)
@@ -36,6 +36,21 @@ namespace TestMVC.Service
         public Task<List<ExpenseCategory>> GetExpenseCategories()
         {
             return _expenseRepository.GetExpenseCategories();
+        }
+
+        public Task<ExpenseCategory?> GetExpenseCategoryById(int expenseCategoryId)
+        {
+            return _expenseRepository.GetExpenseCategoryById(expenseCategoryId);
+        }
+
+        public Task<(bool Success, string Message, ExpenseCategory? Category)> SaveExpenseCategory(ExpenseCategory category)
+        {
+            return _expenseRepository.SaveExpenseCategory(category);
+        }
+
+        public Task<(bool Success, string Message)> DeleteExpenseCategory(int expenseCategoryId)
+        {
+            return _expenseRepository.DeleteExpenseCategory(expenseCategoryId);
         }
     }
 }

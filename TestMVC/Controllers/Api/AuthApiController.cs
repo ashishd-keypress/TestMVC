@@ -11,19 +11,18 @@ using Utility;
 namespace TestMVC.Controllers.Api
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    [Route("api/Auth")]
+    public class AuthApiController : ControllerBase
     {
         private readonly IAuthService _authService;
 
-        public AuthController(IAuthService authService)
+        public AuthApiController(IAuthService authService)
         {
             _authService = authService;
         }
 
         [HttpGet]
         [Route("auth_captcha_generate")]
-        [Route("generate-captcha")]
         public IActionResult GenerateCaptcha()
         {
             string code = Random.Shared.Next(1000, 9999).ToString();
@@ -32,7 +31,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpPost]
         [Route("auth_login")]
-        [Route("login")]
         public async Task<IActionResult> Login([FromBody] LoginReq model)
         {
             DateTime reqDateTime = DateTime.UtcNow;

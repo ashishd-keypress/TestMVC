@@ -2288,3 +2288,90 @@ body.app-body, body {
   font-weight: 600;
   border-radius: 10px;
 }
+
+/* Expense View Tabs & Month Selector (Light + Dark) */
+.expense-tabs-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.expense-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 1.15rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--surface-card-subtle);
+  color: var(--text-body);
+  transition: all 0.2s ease;
+}
+
+.expense-tab-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background-color: var(--primary-soft);
+}
+
+.expense-tab-btn.active {
+  background: var(--primary-gradient);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: var(--primary-shadow);
+}
+
+.expense-month-filter {
+  min-width: 220px;
+}
+
+.expense-month-input {
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  font-weight: 500;
+  padding: 0.52rem 0.85rem;
+  min-height: 40px;
+}
+
+[data-theme="dark"] .expense-month-input {
+  color-scheme: dark;
+}
+
+[data-theme="light"] .expense-month-input {
+  color-scheme: light;
+}
+
+.expense-month-row-clickable {
+  cursor: pointer;
+}
+
+.expense-sort-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.expense-sort-header:hover {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+
+.expense-sort-header:hover .sort-icon-default {
+  opacity: 0.9 !important;
+}
+
+.sort-filter-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.12s ease;
+}
+
+.sort-filter-icon:hover {
+  background-color: rgba(99, 102, 241, 0.15);
+}
+

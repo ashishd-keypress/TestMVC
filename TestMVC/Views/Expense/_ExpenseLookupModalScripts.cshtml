@@ -1,0 +1,51 @@
+<script>
+    (function () {
+        if (typeof window.initLookupManagerModal !== 'function') return;
+
+        window.initLookupManagerModal({
+            openBtnId: 'btnOpenExpenseCategoryModal',
+            modalId: 'expenseCategoryModal',
+            title: 'Expense Category',
+            tableBodyId: 'expenseCategoryTableBody',
+            countLabelId: 'expenseCategoryCountLabel',
+            alertBoxId: 'expenseCategoryModalAlert',
+            insertFormId: 'expenseCategoryInsertForm',
+            insertInputId: 'newExpenseCategoryName',
+            insertBtnId: 'btnInsertExpenseCategory',
+            dropdownId: 'ExpenseCategoryId',
+            dropdownPlaceholder: '-- Select Category --',
+            singularLabel: 'category',
+            pluralLabel: 'categories',
+            columnHeading: 'Category Name',
+            idField: 'expenseCategoryId',
+            nameField: 'categoryName',
+            listUrl: '/api/ExpenseCategory/expense_category_list_get',
+            createUrl: '/api/ExpenseCategory/expense_category_create',
+            updateUrl: '/api/ExpenseCategory/expense_category_update',
+            deleteUrl: '/api/ExpenseCategory/expense_category_delete'
+        });
+
+        window.initLookupManagerModal({
+            openBtnId: 'btnOpenPaymentModeModal',
+            modalId: 'paymentModeModal',
+            title: 'Payment Mode',
+            tableBodyId: 'paymentModeTableBody',
+            countLabelId: 'paymentModeCountLabel',
+            alertBoxId: 'paymentModeModalAlert',
+            insertFormId: 'paymentModeInsertForm',
+            insertInputId: 'newPaymentModeName',
+            insertBtnId: 'btnInsertPaymentMode',
+            dropdownId: 'PaymentMethodId',
+            dropdownPlaceholder: null,
+            singularLabel: 'payment mode',
+            pluralLabel: 'payment modes',
+            columnHeading: 'Payment Mode',
+            idField: 'paymentMethodId',
+            nameField: 'methodName',
+            listUrl: '/api/PaymentMethod/payment_method_list_get',
+            createUrl: '/api/PaymentMethod/payment_method_create',
+            updateUrl: '/api/PaymentMethod/payment_method_update',
+            deleteUrl: '/api/PaymentMethod/payment_method_delete'
+        });
+    })();
+</script>

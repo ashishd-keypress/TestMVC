@@ -11,6 +11,9 @@ namespace Utility
     {
         private static readonly object _lockObj = new object();
 
+        // Unique per-process token so cookies from previous app runs are invalidated on restart.
+        public static readonly string ServerBootId = Guid.NewGuid().ToString("N");
+
         /// <summary>
         /// Retrieves the logged in UserId integer from ClaimsPrincipal if authenticated.
         /// </summary>

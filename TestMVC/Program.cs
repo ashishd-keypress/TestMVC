@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System;
 using TestMVC.Interface;
@@ -44,11 +45,26 @@ namespace TestMVC
                 .AddCookie(options =>
                 {
                     options.Cookie.Name = "TestMVC.Auth";
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.IsEssential = true;
                     options.LoginPath = "/Account/Login";
                     options.LogoutPath = "/Account/Logout";
                     options.AccessDeniedPath = "/Account/AccessDenied";
                     options.ExpireTimeSpan = TimeSpan.FromDays(7);
                     options.SlidingExpiration = true;
+                    options.Events = new CookieAuthenticationEvents
+                    {
+                        OnValidatePrincipal = async context =>
+                        {
+                            // Invalidate auth cookies left over from a previous run/process so Login is always required on restart.
+                            var cookieBootId = context.Principal?.FindFirst("BootId")?.Value;
+                            if (!string.Equals(cookieBootId, Utility.Helper.ServerBootId, StringComparison.Ordinal))
+                            {
+                                context.RejectPrincipal();
+                                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            }
+                        }
+                    };
                 });
 
             builder.Services.AddAuthorization();

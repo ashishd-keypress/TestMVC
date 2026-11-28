@@ -302,6 +302,50 @@ namespace Utility
                                 ALTER TABLE dbo.SalesInvoice ADD UserId INT NULL;
                             END
                             EXEC('UPDATE dbo.SalesInvoice SET UserId = ISNULL(CreatedBy, 1), CreatedBy = ISNULL(CreatedBy, 1) WHERE UserId IS NULL OR CreatedBy IS NULL;');
+                        END;
+
+                        -- 10. Multi-Tenant User Isolation for PaymentMethod
+                        IF EXISTS (SELECT * FROM sys.tables WHERE name = 'PaymentMethod')
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PaymentMethod') AND name = 'UserId')
+                            BEGIN
+                                ALTER TABLE dbo.PaymentMethod ADD UserId INT NULL;
+                            END;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PaymentMethod') AND name = 'IsDelete')
+                            BEGIN
+                                ALTER TABLE dbo.PaymentMethod ADD IsDelete BIT NOT NULL CONSTRAINT DF_PaymentMethod_IsDelete DEFAULT 0;
+                            END;
+
+                            -- Assign existing legacy rows to primary user (UserId = 1) so existing records remain intact
+                            EXEC('UPDATE dbo.PaymentMethod SET UserId = 1 WHERE UserId IS NULL;');
+
+                            -- Seed independent default payment modes once for any active user without PaymentMethod records
+                            EXEC('
+                                DECLARE @SeedUserId INT;
+                                DECLARE user_cursor CURSOR LOCAL FAST_FORWARD FOR
+                                    SELECT UserId FROM dbo.Users WHERE IsDelete = 0;
+                                OPEN user_cursor;
+                                FETCH NEXT FROM user_cursor INTO @SeedUserId;
+                                WHILE @@FETCH_STATUS = 0
+                                BEGIN
+                                    IF NOT EXISTS (SELECT 1 FROM dbo.PaymentMethod WHERE UserId = @SeedUserId)
+                                    BEGIN
+                                        INSERT INTO dbo.PaymentMethod (MethodName, IsActive, IsDelete, UserId)
+                                        VALUES
+                                            (N''Cash'', 1, 0, @SeedUserId),
+                                            (N''UPI'', 1, 0, @SeedUserId),
+                                            (N''Google Pay'', 1, 0, @SeedUserId),
+                                            (N''PhonePe'', 1, 0, @SeedUserId),
+                                            (N''Paytm'', 1, 0, @SeedUserId),
+                                            (N''Credit/Debit Card'', 1, 0, @SeedUserId),
+                                            (N''Bank Transfer'', 1, 0, @SeedUserId),
+                                            (N''Customer Credit'', 1, 0, @SeedUserId);
+                                    END;
+                                    FETCH NEXT FROM user_cursor INTO @SeedUserId;
+                                END;
+                                CLOSE user_cursor;
+                                DEALLOCATE user_cursor;
+                            ');
                         END;", connection))
                     {
                         cmd.ExecuteNonQuery();

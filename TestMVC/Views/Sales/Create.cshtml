@@ -486,7 +486,7 @@
                                 discount: parseFloat(document.getElementById('txtDiscount').value) || 0,
                                 taxAmount: parseFloat(document.getElementById('txtTax').value) || 0,
                                 grandTotal: parseFloat(document.getElementById('hiddenGrandTotal').value) || 0,
-                                paymentMethodId: parseInt(document.getElementById('payMethodSelect').value, 10) || 1,
+                                paymentMethodId: parseInt(document.getElementById('payMethodSelect').value, 10) || 0,
                                 paidAmount: parseFloat(document.getElementById('txtPaidAmount').value) || 0,
                                 dueAmount: parseFloat(document.getElementById('hiddenDueAmount').value) || 0,
                                 transactionReference: f.querySelector('[name="TransactionReference"]').value.trim() || null,

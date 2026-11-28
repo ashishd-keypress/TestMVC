@@ -20,11 +20,44 @@ namespace TestMVC.Controllers
 
         // GET: /Expense
         [HttpGet]
-        public async Task<IActionResult> Index(string? search)
+        public async Task<IActionResult> Index(
+            string? search, 
+            string? month = null, 
+            string? tab = null, 
+            int? paymentMethodId = null,
+            string? sortBy = null,
+            string? sortOrder = null)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
-            var expenses = await _expenseService.GetExpenses(search, currentUserId);
+
+            string effectiveMonth = month == null
+                ? DateTime.Today.ToString("yyyy-MM")
+                : month.Trim();
+
+            int? filterYear = null;
+            int? filterMonth = null;
+            if (!string.IsNullOrWhiteSpace(effectiveMonth) &&
+                !string.Equals(effectiveMonth, "all", StringComparison.OrdinalIgnoreCase) &&
+                Utility.ExpenseStatsHelper.TryParseYearMonth(effectiveMonth, out int y, out int m))
+            {
+                filterYear = y;
+                filterMonth = m;
+            }
+
+            var allExpenses = await _expenseService.GetExpenses(null, currentUserId);
+            var paymentMethods = await _salesService.GetPaymentMethods(currentUserId);
+            var expenses = (filterYear.HasValue || !string.IsNullOrWhiteSpace(search) || paymentMethodId.HasValue || !string.IsNullOrWhiteSpace(sortBy))
+                ? await _expenseService.GetExpenses(search, currentUserId, filterYear, filterMonth, paymentMethodId, sortBy, sortOrder)
+                : allExpenses;
+
             ViewBag.Search = search;
+            ViewBag.SelectedMonth = filterYear.HasValue ? $"{filterYear.Value:D4}-{filterMonth!.Value:D2}" : string.Empty;
+            ViewBag.ActiveTab = string.Equals(tab, "records", StringComparison.OrdinalIgnoreCase) ? "records" : "summary";
+            ViewBag.AllExpenses = allExpenses;
+            ViewBag.PaymentMethods = paymentMethods;
+            ViewBag.SelectedPaymentMethodId = paymentMethodId;
+            ViewBag.SortBy = sortBy;
+            ViewBag.SortOrder = sortOrder;
             return View(expenses);
         }
 
@@ -32,8 +65,13 @@ namespace TestMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            await LoadDropdownsAsync();
-            return View(new Expense { ExpenseDate = System.DateTime.Today });
+            int? currentUserId = Utility.Helper.GetUserId(User);
+            var defaultPayId = await LoadDropdownsAsync(currentUserId: currentUserId);
+            return View(new Expense
+            {
+                ExpenseDate = System.DateTime.Today,
+                PaymentMethodId = defaultPayId
+            });
         }
 
         // POST: /Expense/Create
@@ -47,7 +85,7 @@ namespace TestMVC.Controllers
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+                await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId, currentUserId);
                 return View(expense);
             }
 
@@ -59,7 +97,7 @@ namespace TestMVC.Controllers
             }
 
             ModelState.AddModelError(string.Empty, "Unable to record expense.");
-            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId, currentUserId);
             return View(expense);
         }
 
@@ -75,7 +113,7 @@ namespace TestMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId, currentUserId);
             return View(expense);
         }
 
@@ -90,7 +128,7 @@ namespace TestMVC.Controllers
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+                await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId, currentUserId);
                 return View(expense);
             }
 
@@ -102,7 +140,7 @@ namespace TestMVC.Controllers
             }
 
             ModelState.AddModelError(string.Empty, "Unable to update expense.");
-            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId);
+            await LoadDropdownsAsync(expense.ExpenseCategoryId, expense.PaymentMethodId, currentUserId);
             return View(expense);
         }
 
@@ -137,13 +175,16 @@ namespace TestMVC.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task LoadDropdownsAsync(int? selectedCat = null, int? selectedPay = null)
+        private async Task<int?> LoadDropdownsAsync(int? selectedCat = null, int? selectedPay = null, int? currentUserId = null)
         {
+            currentUserId ??= Utility.Helper.GetUserId(User);
             var cats = await _expenseService.GetExpenseCategories();
-            var payMethods = await _salesService.GetPaymentMethods();
+            var payMethods = await _salesService.GetPaymentMethods(currentUserId);
+            int? defaultPayId = selectedPay ?? payMethods.FirstOrDefault()?.PaymentMethodId;
 
             ViewBag.Categories = new SelectList(cats, "ExpenseCategoryId", "CategoryName", selectedCat);
-            ViewBag.PaymentMethods = new SelectList(payMethods, "PaymentMethodId", "MethodName", selectedPay ?? 1);
+            ViewBag.PaymentMethods = new SelectList(payMethods, "PaymentMethodId", "MethodName", defaultPayId);
+            return defaultPayId;
         }
     }
 }

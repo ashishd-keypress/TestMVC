@@ -243,12 +243,27 @@ namespace TestMVC.Repository
                 // 3. Record Payment
                 if (invoice.PaidAmount > 0)
                 {
+                    int paymentMethodId = invoice.PaymentMethodId;
+                    if (paymentMethodId <= 0)
+                    {
+                        using var pmLookupCmd = new SqlCommand(@"
+                            SELECT TOP 1 PaymentMethodId
+                            FROM dbo.PaymentMethod
+                            WHERE ISNULL(IsDelete, 0) = 0
+                              AND IsActive = 1
+                              AND ISNULL(UserId, 1) = @UserId
+                            ORDER BY PaymentMethodId ASC;", connection, transaction);
+                        pmLookupCmd.Parameters.AddWithValue("@UserId", (object?)invoice.UserId ?? 1);
+                        var pmObj = await pmLookupCmd.ExecuteScalarAsync();
+                        paymentMethodId = pmObj != null && pmObj != DBNull.Value ? Convert.ToInt32(pmObj) : 1;
+                    }
+
                     using var payCmd = new SqlCommand(@"
                         INSERT INTO dbo.SalesPayment (SalesInvoiceId, PaymentMethodId, Amount, TransactionReference, PaymentDate)
                         VALUES (@SalesInvoiceId, @PaymentMethodId, @Amount, @TransactionReference, GETDATE());", connection, transaction);
 
                     payCmd.Parameters.AddWithValue("@SalesInvoiceId", invoiceId);
-                    payCmd.Parameters.AddWithValue("@PaymentMethodId", invoice.PaymentMethodId > 0 ? invoice.PaymentMethodId : 1);
+                    payCmd.Parameters.AddWithValue("@PaymentMethodId", paymentMethodId);
                     payCmd.Parameters.AddWithValue("@Amount", invoice.PaidAmount);
                     payCmd.Parameters.AddWithValue("@TransactionReference", (object?)invoice.TransactionReference ?? DBNull.Value);
                     await payCmd.ExecuteNonQueryAsync();
@@ -277,20 +292,254 @@ namespace TestMVC.Repository
             }
         }
 
-        public async Task<List<PaymentMethod>> GetPaymentMethods()
+        private static readonly string[] DefaultPaymentMethodNames =
         {
-            var list = new List<PaymentMethod>();
+            "Cash",
+            "UPI",
+            "Google Pay",
+            "PhonePe",
+            "Paytm",
+            "Credit/Debit Card",
+            "Bank Transfer",
+            "Customer Credit"
+        };
+
+        private static async Task EnsureUserPaymentMethodsSeededAsync(SqlConnection connection, int userId)
+        {
+            if (userId <= 0) return;
+
+            using var checkCmd = new SqlCommand(@"SELECT COUNT(1) FROM dbo.PaymentMethod WHERE UserId = @UserId;", connection);
+            checkCmd.Parameters.AddWithValue("@UserId", userId);
+            int existingTotal = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+            if (existingTotal > 0) return;
+
+            foreach (var name in DefaultPaymentMethodNames)
+            {
+                using var seedCmd = new SqlCommand(@"
+                    INSERT INTO dbo.PaymentMethod (MethodName, IsActive, IsDelete, UserId)
+                    VALUES (@MethodName, 1, 0, @UserId);", connection);
+                seedCmd.Parameters.AddWithValue("@MethodName", name);
+                seedCmd.Parameters.AddWithValue("@UserId", userId);
+                await seedCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        public async Task<List<PaymentMethod>> GetPaymentMethods(int? userId = null)
+        {
+            int effectiveUserId = userId.HasValue && userId.Value > 0 ? userId.Value : 1;
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            await EnsureUserPaymentMethodsSeededAsync(connection, effectiveUserId);
+
+            using var cmd = new SqlCommand(@"
+                SELECT PaymentMethodId, MethodName, IsActive, UserId
+                FROM dbo.PaymentMethod
+                WHERE ISNULL(IsDelete, 0) = 0
+                  AND IsActive = 1
+                  AND ISNULL(UserId, 1) = @UserId
+                ORDER BY PaymentMethodId ASC;", connection);
+            cmd.Parameters.AddWithValue("@UserId", effectiveUserId);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            return reader.DataReaderMapToList<PaymentMethod>();
+        }
+
+        public async Task<PaymentMethod?> GetPaymentMethodById(int paymentMethodId, int? userId = null)
+        {
+            if (paymentMethodId <= 0) return null;
+
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
             using var cmd = new SqlCommand(@"
-                SELECT PaymentMethodId, MethodName, IsActive 
-                FROM dbo.PaymentMethod 
-                WHERE IsActive = 1 
-                ORDER BY PaymentMethodId ASC;", connection);
+                SELECT PaymentMethodId, MethodName, IsActive, UserId
+                FROM dbo.PaymentMethod
+                WHERE PaymentMethodId = @Id
+                  AND ISNULL(IsDelete, 0) = 0
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
+            cmd.Parameters.AddWithValue("@Id", paymentMethodId);
+            cmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync();
-            return reader.DataReaderMapToList<PaymentMethod>();
+            return reader.DataReaderMapToSingle<PaymentMethod>();
+        }
+
+        public async Task<(bool Success, string Message, PaymentMethod? PaymentMethod)> SavePaymentMethod(PaymentMethod paymentMethod)
+        {
+            string trimmedName = (paymentMethod.MethodName ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(trimmedName))
+            {
+                return (false, "Payment Mode name is required.", null);
+            }
+            if (trimmedName.Length > 100)
+            {
+                return (false, "Payment Mode name cannot exceed 100 characters.", null);
+            }
+
+            paymentMethod.MethodName = trimmedName;
+            int ownerUserId = paymentMethod.UserId.HasValue && paymentMethod.UserId.Value > 0
+                ? paymentMethod.UserId.Value
+                : 1;
+
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            if (paymentMethod.PaymentMethodId > 0)
+            {
+                // Verify record exists and belongs to the current user before updating
+                using var ownCmd = new SqlCommand(@"
+                    SELECT COUNT(1)
+                    FROM dbo.PaymentMethod
+                    WHERE PaymentMethodId = @Id
+                      AND ISNULL(IsDelete, 0) = 0
+                      AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
+                ownCmd.Parameters.AddWithValue("@Id", paymentMethod.PaymentMethodId);
+                ownCmd.Parameters.AddWithValue("@UserId", (object?)paymentMethod.UserId ?? DBNull.Value);
+                if (Convert.ToInt32(await ownCmd.ExecuteScalarAsync()) == 0)
+                {
+                    return (false, "Payment mode not found.", null);
+                }
+            }
+
+            using (var dupCmd = new SqlCommand(@"
+                SELECT COUNT(1)
+                FROM dbo.PaymentMethod
+                WHERE LOWER(LTRIM(RTRIM(MethodName))) = LOWER(@Name)
+                  AND ISNULL(IsDelete, 0) = 0
+                  AND ISNULL(UserId, 1) = @UserId
+                  AND PaymentMethodId <> @Id;", connection))
+            {
+                dupCmd.Parameters.AddWithValue("@Name", trimmedName);
+                dupCmd.Parameters.AddWithValue("@UserId", ownerUserId);
+                dupCmd.Parameters.AddWithValue("@Id", paymentMethod.PaymentMethodId);
+                int dupCount = Convert.ToInt32(await dupCmd.ExecuteScalarAsync());
+                if (dupCount > 0)
+                {
+                    return (false, $"Payment mode '{trimmedName}' already exists.", null);
+                }
+            }
+
+            if (paymentMethod.PaymentMethodId <= 0)
+            {
+                using var insertCmd = new SqlCommand(@"
+                    INSERT INTO dbo.PaymentMethod (MethodName, IsActive, IsDelete, UserId)
+                    VALUES (@MethodName, @IsActive, 0, @UserId);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);", connection);
+                insertCmd.Parameters.AddWithValue("@MethodName", trimmedName);
+                insertCmd.Parameters.AddWithValue("@IsActive", paymentMethod.IsActive ? 1 : 0);
+                insertCmd.Parameters.AddWithValue("@UserId", ownerUserId);
+
+                var newIdObj = await insertCmd.ExecuteScalarAsync();
+                int newId = newIdObj != null ? Convert.ToInt32(newIdObj) : 0;
+                if (newId <= 0)
+                {
+                    return (false, "Unable to add payment mode.", null);
+                }
+
+                paymentMethod.PaymentMethodId = newId;
+                paymentMethod.UserId = ownerUserId;
+                return (true, "Payment mode added successfully.", paymentMethod);
+            }
+            else
+            {
+                using var updateCmd = new SqlCommand(@"
+                    UPDATE dbo.PaymentMethod
+                    SET MethodName = @MethodName,
+                        IsActive = @IsActive
+                    WHERE PaymentMethodId = @Id
+                      AND ISNULL(IsDelete, 0) = 0
+                      AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection);
+                updateCmd.Parameters.AddWithValue("@Id", paymentMethod.PaymentMethodId);
+                updateCmd.Parameters.AddWithValue("@MethodName", trimmedName);
+                updateCmd.Parameters.AddWithValue("@IsActive", paymentMethod.IsActive ? 1 : 0);
+                updateCmd.Parameters.AddWithValue("@UserId", (object?)paymentMethod.UserId ?? DBNull.Value);
+
+                int affected = await updateCmd.ExecuteNonQueryAsync();
+                if (affected <= 0)
+                {
+                    return (false, "Payment mode not found.", null);
+                }
+
+                paymentMethod.UserId = ownerUserId;
+                return (true, "Payment mode updated successfully.", paymentMethod);
+            }
+        }
+
+        public async Task<(bool Success, string Message)> DeletePaymentMethod(int paymentMethodId, int? userId = null)
+        {
+            if (paymentMethodId <= 0)
+            {
+                return (false, "Invalid payment mode ID.");
+            }
+
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            int ownerUserId;
+            using (var existsCmd = new SqlCommand(@"
+                SELECT ISNULL(UserId, 1)
+                FROM dbo.PaymentMethod
+                WHERE PaymentMethodId = @Id
+                  AND ISNULL(IsDelete, 0) = 0
+                  AND (@UserId IS NULL OR ISNULL(UserId, 1) = @UserId);", connection))
+            {
+                existsCmd.Parameters.AddWithValue("@Id", paymentMethodId);
+                existsCmd.Parameters.AddWithValue("@UserId", (object?)userId ?? DBNull.Value);
+                var ownerObj = await existsCmd.ExecuteScalarAsync();
+                if (ownerObj == null || ownerObj == DBNull.Value)
+                {
+                    return (false, "Payment mode not found.");
+                }
+                ownerUserId = userId.HasValue && userId.Value > 0 ? userId.Value : Convert.ToInt32(ownerObj);
+            }
+
+            // Check usage strictly for the currently logged-in user's records only
+            using (var refCmd = new SqlCommand(@"
+                SELECT
+                    (SELECT COUNT(1)
+                     FROM dbo.Expense e
+                     WHERE e.PaymentMethodId = @Id
+                       AND ISNULL(e.UserId, ISNULL(e.CreatedBy, 1)) = @OwnerUserId) +
+                    (SELECT COUNT(1)
+                     FROM dbo.SalesPayment sp
+                     LEFT JOIN dbo.SalesInvoice si ON sp.SalesInvoiceId = si.SalesInvoiceId
+                     WHERE sp.PaymentMethodId = @Id
+                       AND ISNULL(si.UserId, ISNULL(si.CreatedBy, 1)) = @OwnerUserId) +
+                    (SELECT COUNT(1)
+                     FROM dbo.SalesReturnPayment srp
+                     LEFT JOIN dbo.SalesReturn sr ON srp.SalesReturnId = sr.SalesReturnId
+                     LEFT JOIN dbo.SalesInvoice si ON sr.SalesInvoiceId = si.SalesInvoiceId
+                     WHERE srp.PaymentMethodId = @Id
+                       AND ISNULL(srp.CreatedBy, ISNULL(sr.CreatedBy, ISNULL(si.UserId, 1))) = @OwnerUserId) +
+                    (SELECT COUNT(1)
+                     FROM dbo.PurchasePayment pp
+                     LEFT JOIN dbo.Purchase p ON pp.PurchaseId = p.PurchaseId
+                     WHERE pp.PaymentMethodId = @Id
+                       AND ISNULL(p.UserId, ISNULL(p.CreatedBy, 1)) = @OwnerUserId);", connection))
+            {
+                refCmd.Parameters.AddWithValue("@Id", paymentMethodId);
+                refCmd.Parameters.AddWithValue("@OwnerUserId", ownerUserId);
+                int usedCount = Convert.ToInt32(await refCmd.ExecuteScalarAsync());
+                if (usedCount > 0)
+                {
+                    return (false, $"Cannot delete this payment mode because it is used by {usedCount} existing record(s).");
+                }
+            }
+
+            using var deleteCmd = new SqlCommand(@"
+                UPDATE dbo.PaymentMethod
+                SET IsDelete = 1,
+                    IsActive = 0
+                WHERE PaymentMethodId = @Id
+                  AND ISNULL(UserId, 1) = @OwnerUserId
+                  AND ISNULL(IsDelete, 0) = 0;", connection);
+            deleteCmd.Parameters.AddWithValue("@Id", paymentMethodId);
+            deleteCmd.Parameters.AddWithValue("@OwnerUserId", ownerUserId);
+            int affected = await deleteCmd.ExecuteNonQueryAsync();
+            return affected > 0
+                ? (true, "Payment mode deleted successfully.")
+                : (false, "Unable to delete payment mode.");
         }
 
         public async Task<decimal> GetTodaySalesAmount(int? userId = null)

@@ -29,6 +29,7 @@ namespace TestMVC.Controllers
             _supplierService = supplierService;
         }
 
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> Index()
         {
             int? currentUserId = Utility.Helper.GetUserId(User);

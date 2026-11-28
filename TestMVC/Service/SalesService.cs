@@ -29,9 +29,24 @@ namespace TestMVC.Service
             return _salesRepository.CreateSalesInvoice(invoice);
         }
 
-        public Task<List<PaymentMethod>> GetPaymentMethods()
+        public Task<List<PaymentMethod>> GetPaymentMethods(int? userId = null)
         {
-            return _salesRepository.GetPaymentMethods();
+            return _salesRepository.GetPaymentMethods(userId);
+        }
+
+        public Task<PaymentMethod?> GetPaymentMethodById(int paymentMethodId, int? userId = null)
+        {
+            return _salesRepository.GetPaymentMethodById(paymentMethodId, userId);
+        }
+
+        public Task<(bool Success, string Message, PaymentMethod? PaymentMethod)> SavePaymentMethod(PaymentMethod paymentMethod)
+        {
+            return _salesRepository.SavePaymentMethod(paymentMethod);
+        }
+
+        public Task<(bool Success, string Message)> DeletePaymentMethod(int paymentMethodId, int? userId = null)
+        {
+            return _salesRepository.DeletePaymentMethod(paymentMethodId, userId);
         }
 
         public Task<decimal> GetTodaySalesAmount(int? userId = null)

@@ -30,10 +30,15 @@ namespace TestMVC.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login(string? returnUrl = null)
         {
-            // When landing on the Login page (e.g., project launch or fresh start),
-            // clear any previous/stale auth session so the user must log in before accessing the Dashboard.
-            if (User.Identity != null && User.Identity.IsAuthenticated && !IsSafeRedirectUrl(returnUrl))
+            // Redirect to a requested protected page when already signed in; otherwise clear any
+            // leftover session so launching the Login page always displays the Login form first.
+            if (User.Identity != null && User.Identity.IsAuthenticated)
             {
+                if (IsSafeRedirectUrl(returnUrl))
+                {
+                    return Redirect(returnUrl!);
+                }
+
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 Response.Cookies.Delete("TestMVC.Auth");
                 Response.Cookies.Delete(".AspNetCore.Cookies");
@@ -92,7 +97,8 @@ namespace TestMVC.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, res.UserId.ToString()),
                 new Claim(ClaimTypes.Name, res.Username),
-                new Claim(ClaimTypes.MobilePhone, res.MobileNumber ?? "")
+                new Claim(ClaimTypes.MobilePhone, res.MobileNumber ?? ""),
+                new Claim("BootId", Utility.Helper.ServerBootId)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

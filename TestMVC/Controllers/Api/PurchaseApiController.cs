@@ -8,20 +8,18 @@ using TestMVC.Models;
 namespace TestMVC.Controllers.Api
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class PurchaseController : ControllerBase
+    [Route("api/Purchase")]
+    public class PurchaseApiController : ControllerBase
     {
         private readonly IPurchaseService _purchaseService;
 
-        public PurchaseController(IPurchaseService purchaseService)
+        public PurchaseApiController(IPurchaseService purchaseService)
         {
             _purchaseService = purchaseService;
         }
 
         [HttpGet]
-        [Route("")]
         [Route("purchase_list_get")]
-        [Route("search")]
         public async Task<IActionResult> Search([FromQuery] string? search)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -55,7 +53,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("purchase_detail_get")]
-        [Route("{id:long}")]
         public async Task<IActionResult> GetById([FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : (id ?? 0);
@@ -72,9 +69,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
-        [Route("")]
         [Route("purchase_detail_create")]
-        [Route("create")]
         public async Task<IActionResult> Create([FromBody] Purchase purchase)
         {
             if (purchase == null)

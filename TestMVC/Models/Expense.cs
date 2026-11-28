@@ -31,7 +31,7 @@ namespace TestMVC.Models
         public string Description { get; set; } = string.Empty;
 
         [Display(Name = "Payment Mode")]
-        public int? PaymentMethodId { get; set; } = 1;
+        public int? PaymentMethodId { get; set; }
 
         public string? PaymentMethodName { get; set; }
 
@@ -45,6 +45,12 @@ namespace TestMVC.Models
     public class ExpenseCategory
     {
         public int ExpenseCategoryId { get; set; }
+
+        [Required(ErrorMessage = "Category Name is required.")]
+        [Display(Name = "Category Name")]
+        [StringLength(100, ErrorMessage = "Category Name cannot exceed 100 characters.")]
         public string CategoryName { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; } = true;
     }
 }

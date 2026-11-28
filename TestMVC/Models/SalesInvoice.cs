@@ -44,7 +44,7 @@ namespace TestMVC.Models
         public decimal DueAmount { get; set; } = 0;
 
         [Display(Name = "Payment Mode")]
-        public int PaymentMethodId { get; set; } = 1;
+        public int PaymentMethodId { get; set; } = 0;
 
         public string? PaymentMethodName { get; set; }
 

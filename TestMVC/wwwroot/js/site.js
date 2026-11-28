@@ -430,9 +430,11 @@ async function deleteItem(controller, id, itemName, rowElement) {
                                 if (pNo > 1) startIdx = (pNo - 1) * 10 + 1;
                             }
                             rows.forEach((r, idx) => {
-                                const firstCell = r.querySelector('td:first-child');
-                                if (firstCell) {
-                                    firstCell.innerText = (startIdx + idx);
+                                if (!r.hasAttribute('data-expense-id')) {
+                                    const firstCell = r.querySelector('td:first-child');
+                                    if (firstCell) {
+                                        firstCell.innerText = (startIdx + idx);
+                                    }
                                 }
                             });
                         }
@@ -715,6 +717,18 @@ async function spaNavigate(url, pushState = true) {
         const newTitle = doc.querySelector('title');
 
         if (newMain && mainContent) {
+            // Clean up any active Bootstrap modal/backdrop left by the previous view before swapping DOM
+            document.querySelectorAll('.modal.show').forEach(m => {
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    const inst = window.bootstrap.Modal.getInstance(m);
+                    if (inst) inst.hide();
+                }
+            });
+            document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+
             // Apply crossfade transition
             mainContent.classList.remove('page-fade-in');
             void mainContent.offsetWidth; // Trigger reflow
@@ -732,6 +746,10 @@ async function spaNavigate(url, pushState = true) {
 
             updateActiveNav(url);
             executeInlineScripts(mainContent);
+
+            if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
+                window.jQuery.validator.unobtrusive.parse(mainContent);
+            }
 
             // Execute page-specific @section Scripts inside #pageScripts so SPA-navigated pages have full API handlers
             const oldPageScripts = document.getElementById('pageScripts');
@@ -759,10 +777,6 @@ async function spaNavigate(url, pushState = true) {
                         oldPageScripts.appendChild(ns);
                     }
                 }
-            }
-
-            if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
-                window.jQuery.validator.unobtrusive.parse(mainContent);
             }
         } else {
             window.location.href = url;
@@ -971,3 +985,399 @@ function previewSelectedImage(inputElement, previewContainerId, previewImgId) {
         reader.readAsDataURL(file);
     }
 }
+
+// Reusable Lookup Master Modal Controller (Fetch List + Insert + Inline Update + Two-step Delete + Dropdown Sync)
+window.initLookupManagerModal = function (config) {
+    const openBtn = document.getElementById(config.openBtnId);
+    const modalEl = document.getElementById(config.modalId);
+    if (!openBtn || !modalEl) return;
+
+    // Keep modal attached to body so page transition transform does not trap it under the backdrop
+    document.querySelectorAll(`body > #${config.modalId}`).forEach(existing => {
+        if (existing !== modalEl) existing.remove();
+    });
+    if (modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+
+    const insertForm = document.getElementById(config.insertFormId);
+    const newNameInput = document.getElementById(config.insertInputId);
+    const insertBtn = document.getElementById(config.insertBtnId);
+    const tbody = document.getElementById(config.tableBodyId);
+    const countLabel = document.getElementById(config.countLabelId);
+    const alertBox = document.getElementById(config.alertBoxId);
+
+    let itemsCache = [];
+    let editingId = null;
+
+    function showModalAlert(message, type) {
+        if (!alertBox) return;
+        if (!message) {
+            alertBox.className = 'd-none mb-3';
+            alertBox.innerHTML = '';
+            return;
+        }
+        const cls = type === 'success' ? 'alert-success' : 'alert-danger';
+        alertBox.className = `alert ${cls} alert-dismissible fade show mb-3 py-2 px-3 small`;
+        alertBox.innerHTML = `<span>${escapeHtml(message)}</span><button type="button" class="btn-close btn-sm" aria-label="Close"></button>`;
+        const closeBtn = alertBox.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                showModalAlert(null);
+            });
+        }
+    }
+
+    function syncDropdown(items, preferredId) {
+        const selectEl = document.getElementById(config.dropdownId);
+        if (!selectEl) return;
+
+        const currentVal = selectEl.value;
+        const targetVal = preferredId ? String(preferredId) : currentVal;
+
+        selectEl.innerHTML = '';
+        if (config.dropdownPlaceholder) {
+            const ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = config.dropdownPlaceholder;
+            selectEl.appendChild(ph);
+        }
+
+        let matched = false;
+        (items || []).forEach(item => {
+            const itemId = item[config.idField];
+            const itemName = item[config.nameField];
+            const opt = document.createElement('option');
+            opt.value = String(itemId);
+            opt.textContent = itemName;
+            if (targetVal && String(itemId) === targetVal) {
+                opt.selected = true;
+                matched = true;
+            }
+            selectEl.appendChild(opt);
+        });
+
+        if (!matched && !config.dropdownPlaceholder && selectEl.options.length > 0) {
+            selectEl.options[0].selected = true;
+        }
+    }
+
+    function renderRows() {
+        if (!tbody) return;
+        if (countLabel) {
+            const label = itemsCache.length === 1 ? config.singularLabel : config.pluralLabel;
+            countLabel.innerText = `${itemsCache.length} ${label}`;
+        }
+
+        if (!itemsCache || itemsCache.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-center py-4 text-muted">
+                        <em>No ${escapeHtml(config.pluralLabel)} found. Add one above.</em>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = itemsCache.map((item, idx) => {
+            const id = item[config.idField];
+            const name = item[config.nameField] || '';
+            const isEditing = editingId === id;
+
+            if (isEditing) {
+                return `
+                    <tr data-lookup-id="${id}">
+                        <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                        <td>
+                            <input type="text"
+                                   class="form-control form-control-sm lookup-edit-input"
+                                   value="${escapeHtml(name)}"
+                                   maxlength="100"
+                                   data-id="${id}" />
+                        </td>
+                        <td class="text-center">
+                            <div class="d-inline-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-success" data-action="save-edit" data-id="${id}">
+                                    <i class="bi bi-check-lg me-1"></i>Save
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="cancel-edit" data-id="${id}">
+                                    Cancel
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+            }
+
+            return `
+                <tr data-lookup-id="${id}">
+                    <td class="text-center text-muted fw-semibold">${idx + 1}</td>
+                    <td class="fw-semibold">${escapeHtml(name)}</td>
+                    <td class="text-center">
+                        <div class="d-inline-flex gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-action="start-edit" data-id="${id}" title="Update ${escapeHtml(config.title)}">
+                                <i class="bi bi-pencil-square me-1"></i>Update
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${id}" title="Delete ${escapeHtml(config.title)}">
+                                <i class="bi bi-trash me-1"></i>Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        if (editingId !== null) {
+            const editInput = tbody.querySelector('.lookup-edit-input');
+            if (editInput) {
+                editInput.focus();
+                editInput.select();
+            }
+        }
+    }
+
+    async function fetchItems(preferredSelectedId) {
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-center py-4 text-muted">
+                        <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>Loading ${escapeHtml(config.pluralLabel)}...
+                    </td>
+                </tr>`;
+        }
+
+        try {
+            const res = await window.apiFetch(config.listUrl, { method: 'GET' });
+            const json = await res.json().catch(() => null);
+            if (!res.ok || !json || !json.success) {
+                const msg = (json && json.message) || `Failed to load ${config.pluralLabel} (HTTP ${res.status}).`;
+                showModalAlert(msg, 'error');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-danger">${escapeHtml(msg)}</td></tr>`;
+                }
+                return;
+            }
+
+            itemsCache = json.data || [];
+            renderRows();
+            syncDropdown(itemsCache, preferredSelectedId);
+        } catch (err) {
+            console.error(`Fetch ${config.pluralLabel} error:`, err);
+            showModalAlert(`Error loading ${config.pluralLabel}: ${err.message}`, 'error');
+        }
+    }
+
+    async function insertItem() {
+        const name = newNameInput ? newNameInput.value.trim() : '';
+        if (!name) {
+            showModalAlert(`Please enter a ${config.singularLabel} name.`, 'error');
+            if (newNameInput) newNameInput.focus();
+            return;
+        }
+
+        const origHtml = insertBtn ? insertBtn.innerHTML : '';
+        if (insertBtn) {
+            insertBtn.disabled = true;
+            insertBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving...';
+        }
+        showModalAlert(null);
+
+        try {
+            const payload = { isActive: true };
+            payload[config.nameField] = name;
+
+            const res = await window.apiFetch(config.createUrl, {
+                method: 'POST',
+                body: payload
+            });
+            const json = await res.json().catch(() => null);
+
+            if (!res.ok || !json || !json.success) {
+                const errMsg = (json && json.message) || `Unable to add ${config.singularLabel} (HTTP ${res.status}).`;
+                showModalAlert(errMsg, 'error');
+                showToast(errMsg, 'error');
+                return;
+            }
+
+            if (newNameInput) newNameInput.value = '';
+            const selectEl = document.getElementById(config.dropdownId);
+            const preferredId = (selectEl && !selectEl.value && json.data) ? json.data[config.idField] : null;
+            const okMsg = json.message || `${config.title} added successfully.`;
+            showModalAlert(okMsg, 'success');
+            showToast(okMsg, 'success');
+            editingId = null;
+            await fetchItems(preferredId);
+        } catch (err) {
+            console.error(`Insert ${config.singularLabel} error:`, err);
+            showModalAlert(`Error adding ${config.singularLabel}: ${err.message}`, 'error');
+        } finally {
+            if (insertBtn) {
+                insertBtn.disabled = false;
+                insertBtn.innerHTML = origHtml;
+            }
+        }
+    }
+
+    async function updateItem(id, updatedName, saveBtn) {
+        const name = (updatedName || '').trim();
+        if (!name) {
+            showModalAlert(`${config.columnHeading} cannot be empty.`, 'error');
+            return;
+        }
+
+        const origHtml = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving...';
+        }
+        showModalAlert(null);
+
+        try {
+            const payload = { isActive: true };
+            payload[config.idField] = id;
+            payload[config.nameField] = name;
+
+            const res = await window.apiFetch(config.updateUrl, {
+                method: 'PUT',
+                body: payload
+            });
+            const json = await res.json().catch(() => null);
+
+            if (!res.ok || !json || !json.success) {
+                const errMsg = (json && json.message) || `Unable to update ${config.singularLabel} (HTTP ${res.status}).`;
+                showModalAlert(errMsg, 'error');
+                showToast(errMsg, 'error');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = origHtml;
+                }
+                return;
+            }
+
+            editingId = null;
+            const okMsg = json.message || `${config.title} updated successfully.`;
+            showModalAlert(okMsg, 'success');
+            showToast(okMsg, 'success');
+            await fetchItems();
+        } catch (err) {
+            console.error(`Update ${config.singularLabel} error:`, err);
+            showModalAlert(`Error updating ${config.singularLabel}: ${err.message}`, 'error');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = origHtml;
+            }
+        }
+    }
+
+    async function deleteItemEntry(id, btn) {
+        const item = itemsCache.find(c => c[config.idField] === id);
+        const displayName = item ? `"${item[config.nameField]}"` : config.singularLabel;
+
+        if (btn && !btn.dataset.confirming) {
+            btn.dataset.confirming = 'true';
+            const originalHtml = btn.innerHTML;
+            const originalClasses = btn.className;
+            btn.className = 'btn btn-sm btn-danger text-nowrap';
+            btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Confirm Delete?';
+            showToast(`Click "Confirm Delete?" to remove ${displayName}.`, 'warning');
+
+            const timer = setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.className = originalClasses;
+                delete btn.dataset.confirming;
+                delete btn.dataset.timerId;
+            }, 4000);
+            btn.dataset.timerId = String(timer);
+            return;
+        }
+
+        if (btn && btn.dataset.timerId) {
+            clearTimeout(parseInt(btn.dataset.timerId, 10));
+            delete btn.dataset.timerId;
+            delete btn.dataset.confirming;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
+        }
+        showModalAlert(null);
+
+        try {
+            const res = await window.apiFetch(`${config.deleteUrl}?id=${id}`, {
+                method: 'DELETE'
+            });
+            const json = await res.json().catch(() => null);
+
+            if (!res.ok || !json || !json.success) {
+                const errMsg = (json && json.message) || `Unable to delete ${config.singularLabel} (HTTP ${res.status}).`;
+                showModalAlert(errMsg, 'error');
+                showToast(errMsg, 'error');
+                renderRows();
+                return;
+            }
+
+            if (editingId === id) editingId = null;
+            const okMsg = json.message || `${config.title} deleted successfully.`;
+            showModalAlert(okMsg, 'success');
+            showToast(okMsg, 'success');
+            await fetchItems();
+        } catch (err) {
+            console.error(`Delete ${config.singularLabel} error:`, err);
+            showModalAlert(`Error deleting ${config.singularLabel}: ${err.message}`, 'error');
+            renderRows();
+        }
+    }
+
+    openBtn.addEventListener('click', function () {
+        editingId = null;
+        showModalAlert(null);
+        if (window.bootstrap && window.bootstrap.Modal) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+        fetchItems();
+    });
+
+    if (insertForm) {
+        insertForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            insertItem();
+        });
+    }
+
+    if (tbody) {
+        tbody.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.getAttribute('data-action');
+            const id = parseInt(btn.getAttribute('data-id'), 10) || 0;
+            if (id <= 0) return;
+
+            if (action === 'start-edit') {
+                editingId = id;
+                showModalAlert(null);
+                renderRows();
+            } else if (action === 'cancel-edit') {
+                editingId = null;
+                renderRows();
+            } else if (action === 'save-edit') {
+                const row = btn.closest('tr');
+                const input = row ? row.querySelector('.lookup-edit-input') : null;
+                updateItem(id, input ? input.value : '', btn);
+            } else if (action === 'delete') {
+                deleteItemEntry(id, btn);
+            }
+        });
+
+        tbody.addEventListener('keydown', function (e) {
+            const input = e.target.closest('.lookup-edit-input');
+            if (!input) return;
+            const id = parseInt(input.getAttribute('data-id'), 10) || 0;
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const row = input.closest('tr');
+                const saveBtn = row ? row.querySelector('button[data-action="save-edit"]') : null;
+                updateItem(id, input.value, saveBtn);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                editingId = null;
+                renderRows();
+            }
+        });
+    }
+};

@@ -8,20 +8,18 @@ using TestMVC.Models;
 namespace TestMVC.Controllers.Api
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class SalesController : ControllerBase
+    [Route("api/Sales")]
+    public class SalesApiController : ControllerBase
     {
         private readonly ISalesService _salesService;
 
-        public SalesController(ISalesService salesService)
+        public SalesApiController(ISalesService salesService)
         {
             _salesService = salesService;
         }
 
         [HttpGet]
-        [Route("")]
         [Route("sales_invoice_list_get")]
-        [Route("search")]
         public async Task<IActionResult> Search([FromQuery] string? search)
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
@@ -56,7 +54,6 @@ namespace TestMVC.Controllers.Api
 
         [HttpGet]
         [Route("sales_invoice_detail_get")]
-        [Route("{id:long}")]
         public async Task<IActionResult> GetById([FromQuery(Name = "id")] long? queryId = null, long? id = null)
         {
             long targetId = (queryId ?? 0) > 0 ? queryId!.Value : (id ?? 0);
@@ -73,9 +70,7 @@ namespace TestMVC.Controllers.Api
         }
 
         [HttpPost]
-        [Route("")]
         [Route("sales_invoice_create")]
-        [Route("create")]
         public async Task<IActionResult> Create([FromBody] SalesInvoice invoice)
         {
             if (invoice == null)

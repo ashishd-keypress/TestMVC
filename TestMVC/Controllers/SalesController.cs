@@ -43,11 +43,12 @@ namespace TestMVC.Controllers
         public async Task<IActionResult> Create()
         {
             int? currentUserId = Utility.Helper.GetUserId(User);
-            await LoadDropdownsAsync(currentUserId: currentUserId);
+            var defaultPayId = await LoadDropdownsAsync(currentUserId: currentUserId);
             var model = new SalesInvoice
             {
                 InvoiceNumber = $"INV-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
-                InvoiceDate = DateTime.Now
+                InvoiceDate = DateTime.Now,
+                PaymentMethodId = defaultPayId ?? 0
             };
             return View(model);
         }
@@ -120,17 +121,19 @@ namespace TestMVC.Controllers
             return View(invoice);
         }
 
-        private async Task LoadDropdownsAsync(long? selectedCustomer = null, int? selectedPaymentMethod = null, int? currentUserId = null)
+        private async Task<int?> LoadDropdownsAsync(long? selectedCustomer = null, int? selectedPaymentMethod = null, int? currentUserId = null)
         {
             currentUserId ??= Utility.Helper.GetUserId(User);
             var customers = await _customerService.GetCustomers(userId: currentUserId);
-            var paymentMethods = await _salesService.GetPaymentMethods();
+            var paymentMethods = await _salesService.GetPaymentMethods(currentUserId);
             var (products, _, _) = await _productService.GetProduct(new Models.ReqRes.GetProductReq { PageSize = 1000, IsActive = true, UserId = currentUserId });
+            int? defaultPayId = selectedPaymentMethod ?? paymentMethods.FirstOrDefault()?.PaymentMethodId;
 
             ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", selectedCustomer);
-            ViewBag.PaymentMethods = new SelectList(paymentMethods, "PaymentMethodId", "MethodName", selectedPaymentMethod ?? 1);
+            ViewBag.PaymentMethods = new SelectList(paymentMethods, "PaymentMethodId", "MethodName", defaultPayId);
             ViewBag.ProductsList = products;
             ViewBag.CustomersList = customers;
+            return defaultPayId;
         }
     }
 }

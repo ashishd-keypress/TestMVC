@@ -2,23 +2,33 @@
 @{
     ViewData["Title"] = "Shop Expenses";
     string? search = ViewBag.Search;
+    string selectedMonth = ViewBag.SelectedMonth as string ?? DateTime.Today.ToString("yyyy-MM");
+    string activeTab = ViewBag.ActiveTab as string ?? "summary";
+    var allExpenses = ViewBag.AllExpenses as List<TestMVC.Models.Expense> ?? Model;
+    var paymentMethods = ViewBag.PaymentMethods as List<TestMVC.Interface.PaymentMethod> ?? new List<TestMVC.Interface.PaymentMethod>();
+    int? selectedPaymentMethodId = ViewBag.SelectedPaymentMethodId as int?;
+    var selectedPaymentMethod = paymentMethods.FirstOrDefault(pm => pm.PaymentMethodId == selectedPaymentMethodId);
+    string? currentSortBy = ViewBag.SortBy as string;
+    string? currentSortOrder = ViewBag.SortOrder as string;
     DateTime now = DateTime.Today;
 
-    // 1. Current Month Expenses (Requirement #3)
-    var currentMonthExpenses = Model
+    // 1. Current Month Expenses (KPI Card 1)
+    var currentMonthExpenses = allExpenses
         .Where(e => e.ExpenseDate.Year == now.Year && e.ExpenseDate.Month == now.Month)
         .ToList();
     decimal currentMonthTotal = currentMonthExpenses.Sum(e => e.Amount);
     int currentMonthCount = currentMonthExpenses.Count;
     string currentMonthName = now.ToString("MMMM yyyy");
 
-    // 2. Monthly Summaries calculated based on Expense Dates (Requirement #2)
-    var monthlySummaries = Model
+    // 2. All Monthly Summaries grouped by Year + Month
+    var allMonthlySummaries = allExpenses
         .GroupBy(e => new { e.ExpenseDate.Year, e.ExpenseDate.Month })
-        .Select(g => new {
+        .Select(g => new
+        {
             Year = g.Key.Year,
             Month = g.Key.Month,
             MonthDate = new DateTime(g.Key.Year, g.Key.Month, 1),
+            MonthKey = $"{g.Key.Year:D4}-{g.Key.Month:D2}",
             MonthName = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy"),
             Total = g.Sum(x => x.Amount),
             Count = g.Count(),
@@ -28,9 +38,34 @@
         .OrderByDescending(m => m.MonthDate)
         .ToList();
 
-    var completedMonths = monthlySummaries.Where(m => m.IsCompleted).ToList();
+    var completedMonths = allMonthlySummaries.Where(m => m.IsCompleted).ToList();
     decimal completedMonthsTotal = completedMonths.Sum(m => m.Total);
-    decimal allTimeTotal = Model.Sum(e => e.Amount);
+    decimal allTimeTotal = allExpenses.Sum(e => e.Amount);
+
+    // Selected month display rows (single selected month when chosen, or full month-wise list when cleared)
+    bool hasSelectedMonth = Utility.ExpenseStatsHelper.TryParseYearMonth(selectedMonth, out int selY, out int selM);
+    string selectedMonthLabel = hasSelectedMonth
+        ? new DateTime(selY, selM, 1).ToString("MMMM yyyy")
+        : "All Months";
+
+    var displayedMonthlySummaries = hasSelectedMonth
+        ? new[]
+        {
+            allMonthlySummaries.FirstOrDefault(m => m.Year == selY && m.Month == selM)
+            ?? new
+            {
+                Year = selY,
+                Month = selM,
+                MonthDate = new DateTime(selY, selM, 1),
+                MonthKey = $"{selY:D4}-{selM:D2}",
+                MonthName = new DateTime(selY, selM, 1).ToString("MMMM yyyy"),
+                Total = 0m,
+                Count = 0,
+                IsCurrentMonth = (selY == now.Year && selM == now.Month),
+                IsCompleted = (new DateTime(selY, selM, 1).AddMonths(1) <= now)
+            }
+        }.ToList()
+        : allMonthlySummaries;
 }
 
 <div class="container-fluid px-0">
@@ -44,7 +79,7 @@
         </a>
     </div>
 
-    <!-- Expense Stats (Updated immediately on delete without refresh) -->
+    <!-- Expense Stats (Updated immediately on delete/filter without refresh) -->
     <div class="row g-3 mb-4">
         <!-- 1. Total Recorded Expenses (Current Month only) -->
         <div class="col-md-6 col-lg-4">
@@ -89,39 +124,74 @@
                 </div>
                 <div class="kpi-number fs-3 text-nowrap" id="kpiAllTimeTotal">₹@allTimeTotal.ToString("N2")</div>
                 <div class="small text-muted mt-2" id="kpiAllTimeSubtitle">
-                    <i class="bi bi-receipt me-1"></i>@Model.Count transactions across all history
+                    <i class="bi bi-receipt me-1"></i>@allExpenses.Count transactions across all history
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Monthly Expense Summary (Completed & Active Months Breakdown) -->
-    <div class="card shadow-sm mb-4 border-0" id="monthlyExpenseSummarySection">
-        <div class="card-header d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom">
+    <!-- Horizontal View Switcher & Shared Month Selector -->
+    <div class="card shadow-sm mb-4 border-0 expense-view-toolbar">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <div class="expense-tabs-group" role="tablist" aria-label="Expense View Switcher">
+                    <button type="button"
+                            id="btnMonthlySummaryTab"
+                            role="tab"
+                            class="btn expense-tab-btn @(activeTab == "summary" ? "active" : "")"
+                            aria-selected="@(activeTab == "summary" ? "true" : "false")">
+                        <i class="bi bi-calendar3 me-2"></i>Monthly Expense Summary
+                    </button>
+                    <button type="button"
+                            id="btnAllRecordsTab"
+                            role="tab"
+                            class="btn expense-tab-btn @(activeTab == "records" ? "active" : "")"
+                            aria-selected="@(activeTab == "records" ? "true" : "false")">
+                        <i class="bi bi-list-check me-2"></i>All Expense Records
+                    </button>
+                </div>
+
+                <div class="expense-month-filter">
+                    @* <label for="expenseMonthPicker" class="form-label small fw-semibold mb-1 d-block">Month</label> *@
+                    <input type="month"
+                           id="expenseMonthPicker"
+                           class="form-control expense-month-input"
+                           value="@selectedMonth"
+                           aria-label="Select Month and Year" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Monthly Expense Summary (Displays Monthly Total Only, No Individual Records) -->
+    <div class="card shadow-sm mb-4 border-0 @(activeTab == "summary" ? "" : "d-none")" id="monthlyExpenseSummarySection">
+        <div class="card-header d-flex justify-content-between align-items-center py-3 bg-transparent border-bottom flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
                 <div class="rounded-3 p-2 d-inline-flex" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">
                     <i class="bi bi-calendar3 fs-5"></i>
                 </div>
                 <div>
                     <h6 class="mb-0 fw-bold">Monthly Expense Summary</h6>
-                    <small class="text-muted">Calculated totals grouped by completed and active months based on expense dates</small>
+                    <small class="text-muted">Monthly total expense for the selected month &amp; year</small>
                 </div>
             </div>
-            <span class="badge bg-secondary-subtle text-secondary" id="monthlyExpenseSummaryCount">@monthlySummaries.Count Month(s) Recorded</span>
+            <span class="badge bg-secondary-subtle text-secondary" id="monthlyExpenseSummaryCount">
+                @(hasSelectedMonth ? selectedMonthLabel : $"{displayedMonthlySummaries.Count} Month(s) Recorded")
+            </span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="padding-left: 1.25rem;">Month & Year</th>
+                            <th style="padding-left: 1.25rem;">Month &amp; Year</th>
                             <th>Status</th>
                             <th class="text-center">Transactions</th>
                             <th class="text-end" style="padding-right: 1.25rem;">Total Expenses (₹)</th>
                         </tr>
                     </thead>
                     <tbody id="monthlyExpenseSummaryTbody">
-                        @if (monthlySummaries.Count == 0)
+                        @if (displayedMonthlySummaries.Count == 0)
                         {
                             <tr>
                                 <td colspan="4" class="text-center py-4 text-muted">
@@ -131,16 +201,22 @@
                         }
                         else
                         {
-                            foreach (var mg in monthlySummaries)
+                            foreach (var mg in displayedMonthlySummaries)
                             {
-                                <tr>
+                                <tr class="@(hasSelectedMonth ? "" : "expense-month-row-clickable")" data-month-key="@mg.MonthKey">
                                     <td style="padding-left: 1.25rem;">
                                         <div class="fw-semibold">
                                             <i class="bi bi-calendar-check me-2 text-primary"></i>@mg.MonthName
                                         </div>
                                     </td>
                                     <td>
-                                        @if (mg.IsCompleted)
+                                        @if (mg.IsCurrentMonth)
+                                        {
+                                            <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
+                                                <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
+                                            </span>
+                                        }
+                                        else if (mg.IsCompleted)
                                         {
                                             <span class="badge rounded-pill bg-success-subtle text-success px-3 py-1.5 fw-semibold">
                                                 <i class="bi bi-check-circle-fill me-1"></i>Month Completed
@@ -148,8 +224,8 @@
                                         }
                                         else
                                         {
-                                            <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
-                                                <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-1.5 fw-semibold">
+                                                <i class="bi bi-calendar-event me-1"></i>Upcoming Month
                                             </span>
                                         }
                                     </td>
@@ -168,147 +244,271 @@
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="card shadow-sm mb-4 border-0">
-        <div class="card-body py-3">
-            <form method="get" id="expenseSearchForm" class="row g-2 align-items-center">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="expenseSearchInput" name="search" value="@search" class="form-control" placeholder="Search expense description, category..." />
+    <!-- Section 2: All Expense Records for Selected Month (Search + Payment Mode Filter + Complete Details Table) -->
+    <div id="allExpenseRecordsSection" class="@(activeTab == "records" ? "" : "d-none")">
+        <!-- Search & Payment Mode Filter Bar -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body py-3">
+                <form method="get" id="expenseSearchForm" class="row g-2 align-items-center">
+                    <div class="col-md-5 col-lg-5">
+                        <div class="input-group">
+                            <span class="input-group-text text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" id="expenseSearchInput" name="search" value="@search" class="form-control" placeholder="Search expense description, category..." />
+                        </div>
                     </div>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary" id="expenseSearchBtn">Search</button>
-                    <button type="button" class="btn btn-outline-secondary" id="expenseResetBtn">Reset</button>
-                </div>
-            </form>
+                    <div class="col-md-4 col-lg-4 col-sm-6">
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small fw-semibold"><i class="bi bi-wallet2 me-1"></i>Payment Mode</span>
+                            <select id="expensePaymentMethodFilter" name="paymentMethodId" class="form-select" aria-label="Filter by Payment Mode">
+                                <option value="">All</option>
+                                @foreach (var pm in paymentMethods)
+                                {
+                                    <option value="@pm.PaymentMethodId" selected="@(selectedPaymentMethodId == pm.PaymentMethodId)">@pm.MethodName</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-auto d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="expenseSearchBtn">Search</button>
+                        <button type="button" class="btn btn-outline-secondary" id="expenseResetBtn">Reset</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <!-- Expenses Table (Columns: Date, Description, Category, Amount, Actions) -->
-    <div class="card shadow-sm border-0">
-        <div class="card-header py-3 bg-transparent border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fw-bold">
-                <i class="bi bi-list-check me-2 text-primary"></i>All Expense Records
-            </h6>
-            <span class="small text-muted" id="tableExpenseRecordCount">Showing @Model.Count record(s)</span>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover table-bordered align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 140px;">Date</th>
-                        <th>Description</th>
-                        <th style="width: 190px;">Category</th>
-                        <th class="text-end" style="width: 150px;">Amount</th>
-                        <th class="text-center" style="width: 170px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="expenseTableBody">
-                    @if (Model.Count == 0)
-                    {
-                        <tr id="noExpensesRow">
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
-                                <em>No shop expenses recorded yet.</em>
-                            </td>
-                        </tr>
-                    }
-                    else
-                    {
-                        foreach (var e in Model)
-                        {
-                            <tr id="expense-row-@e.ExpenseId" data-expense-id="@e.ExpenseId" data-amount="@e.Amount" data-date="@e.ExpenseDate.ToString("yyyy-MM-dd")">
-                                <!-- 1. Date -->
-                                <td class="fw-semibold text-nowrap">
-                                    <i class="bi bi-calendar-event me-1 text-muted"></i>
-                                    @e.ExpenseDate.ToString("yyyy-MM-dd")
-                                </td>
-                                <!-- 2. Description -->
-                                <td>
-                                    <div class="fw-semibold">@e.Description</div>
-                                    @if (!string.IsNullOrEmpty(e.PaymentMethodName))
-                                    {
-                                        <small class="text-muted"><i class="bi bi-credit-card me-1"></i>@e.PaymentMethodName</small>
-                                    }
-                                </td>
-                                <!-- 3. Category -->
-                                <td>
-                                    <span class="badge px-2.5 py-1.5" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;">
-                                        @e.CategoryName
+        <!-- Expenses Table (Columns: Date, Description, Category, Amount, Actions) -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header py-3 bg-transparent border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-list-check me-2 text-primary"></i>All Expense Records
+                    </h6>
+                    <span class="badge bg-primary-subtle text-primary" id="recordsSelectedMonthBadge">@selectedMonthLabel</span>
+                    <span class="badge bg-info-subtle text-info @(selectedPaymentMethod != null ? "" : "d-none")" id="recordsSelectedPaymentBadge">
+                        @(selectedPaymentMethod?.MethodName ?? "")
+                    </span>
+                </div>
+                <span class="small text-muted" id="tableExpenseRecordCount">Showing @Model.Count record(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 150px;" class="user-select-none expense-sort-header" id="thDateFilter" data-field="date" title="Filter &amp; sort by Date">
+                                <div class="d-inline-flex align-items-center gap-1.5">
+                                    <span>Date</span>
+                                    <span class="sort-filter-icon d-inline-flex align-items-center" id="dateFilterIcon" aria-label="Sort by Date">
+                                        <svg class="sort-icon-default @(currentSortBy == "date" ? "d-none" : "")" width="11" height="13" viewBox="0 0 12 14" fill="currentColor" style="opacity: 0.55;">
+                                            <path d="M6 1 L11 6 L1 6 Z"/>
+                                            <path d="M6 13 L1 8 L11 8 Z"/>
+                                        </svg>
+                                        <i class="bi bi-sort-down sort-icon-desc @(currentSortBy == "date" && currentSortOrder == "desc" ? "" : "d-none") text-primary fs-6 fw-bold"></i>
+                                        <i class="bi bi-sort-up sort-icon-asc @(currentSortBy == "date" && currentSortOrder == "asc" ? "" : "d-none") text-primary fs-6 fw-bold"></i>
                                     </span>
-                                </td>
-                                <!-- 4. Amount -->
-                                <td class="text-end fw-bold text-danger fs-6 text-nowrap">
-                                    ₹@e.Amount.ToString("N2")
-                                </td>
-                                <!-- 5. Actions (Edit & Delete with Confirmation & Live Recalculation) -->
-                                <td class="text-center">
-                                    <div class="d-inline-flex gap-1">
-                                        <a asp-action="Edit" asp-route-id="@e.ExpenseId" class="btn btn-sm btn-outline-primary" title="Edit Expense">
-                                            <i class="bi bi-pencil-square me-1"></i>Edit
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', @e.ExpenseId, '@Html.Raw(e.Description.Replace("'", "\\'"))', this.closest('tr'))" title="Delete Expense">
-                                            <i class="bi bi-trash me-1"></i>Delete
-                                        </button>
-                                    </div>
+                                </div>
+                            </th>
+                            <th>Description</th>
+                            <th style="width: 190px;">Category</th>
+                            <th class="text-end user-select-none expense-sort-header" style="width: 160px;" id="thAmountFilter" data-field="amount" title="Filter &amp; sort by Amount">
+                                <div class="d-inline-flex align-items-center justify-content-end gap-1.5 w-100">
+                                    <span>Amount</span>
+                                    <span class="sort-filter-icon d-inline-flex align-items-center" id="amountFilterIcon" aria-label="Sort by Amount">
+                                        <svg class="sort-icon-default @(currentSortBy == "amount" ? "d-none" : "")" width="11" height="13" viewBox="0 0 12 14" fill="currentColor" style="opacity: 0.55;">
+                                            <path d="M6 1 L11 6 L1 6 Z"/>
+                                            <path d="M6 13 L1 8 L11 8 Z"/>
+                                        </svg>
+                                        <i class="bi bi-sort-down sort-icon-desc @(currentSortBy == "amount" && currentSortOrder == "desc" ? "" : "d-none") text-primary fs-6 fw-bold"></i>
+                                        <i class="bi bi-sort-up sort-icon-asc @(currentSortBy == "amount" && currentSortOrder == "asc" ? "" : "d-none") text-primary fs-6 fw-bold"></i>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="text-center" style="width: 170px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseTableBody">
+                        @if (Model.Count == 0)
+                        {
+                            <tr id="noExpensesRow">
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
+                                    <em>No shop expenses recorded.</em>
                                 </td>
                             </tr>
                         }
-                    }
-                </tbody>
-            </table>
+                        else
+                        {
+                            foreach (var e in Model)
+                            {
+                                <tr id="expense-row-@e.ExpenseId" data-expense-id="@e.ExpenseId" data-amount="@e.Amount" data-date="@e.ExpenseDate.ToString("yyyy-MM-dd")">
+                                    <td class="fw-semibold text-nowrap">
+                                        <i class="bi bi-calendar-event me-1 text-muted"></i>
+                                        @e.ExpenseDate.ToString("yyyy-MM-dd")
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@e.Description</div>
+                                        @if (!string.IsNullOrEmpty(e.PaymentMethodName))
+                                        {
+                                            <small class="text-muted"><i class="bi bi-credit-card me-1"></i>@e.PaymentMethodName</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge px-2.5 py-1.5" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;">
+                                            @e.CategoryName
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger fs-6 text-nowrap">
+                                        ₹@e.Amount.ToString("N2")
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-inline-flex gap-1">
+                                            <a asp-action="Edit" asp-route-id="@e.ExpenseId" class="btn btn-sm btn-outline-primary" title="Edit Expense">
+                                                <i class="bi bi-pencil-square me-1"></i>Edit
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    data-desc="@e.Description"
+                                                    onclick="deleteItem('Expense', @e.ExpenseId, this.dataset.desc || '', this.closest('tr'))"
+                                                    title="Delete Expense">
+                                                <i class="bi bi-trash me-1"></i>Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Automatic Dynamic Recalculation & DOM Synchronization for Expenses
-        window.updateExpenseUI = function (stats) {
-            if (!stats) return;
-
-            // 1. Current Month KPI Card
-            const elCurrTotal = document.getElementById('kpiCurrentMonthTotal');
-            const elCurrSub = document.getElementById('kpiCurrentMonthSubtitle');
-            if (elCurrTotal && stats.currentMonthTotalFormatted !== undefined) {
-                elCurrTotal.innerText = '₹' + stats.currentMonthTotalFormatted;
-            }
-            if (elCurrSub && stats.currentMonthName) {
-                elCurrSub.innerHTML = `<i class="bi bi-clock-history me-1"></i>${stats.currentMonthCount} transactions logged in ${stats.currentMonthName}`;
-            }
-
-            // 2. Completed Months KPI Card
-            const elCompTotal = document.getElementById('kpiCompletedMonthsTotal');
-            const elCompSub = document.getElementById('kpiCompletedMonthsSubtitle');
-            if (elCompTotal && stats.completedMonthsTotalFormatted !== undefined) {
-                elCompTotal.innerText = '₹' + stats.completedMonthsTotalFormatted;
-            }
-            if (elCompSub && stats.completedMonthsCount !== undefined) {
-                elCompSub.innerHTML = `<i class="bi bi-archive me-1"></i>Total for ${stats.completedMonthsCount} completed month(s)`;
-            }
-
-            // 3. All-Time Recorded Expenses KPI Card
-            const elAllTotal = document.getElementById('kpiAllTimeTotal');
-            const elAllSub = document.getElementById('kpiAllTimeSubtitle');
-            if (elAllTotal && stats.allTimeTotalFormatted !== undefined) {
-                elAllTotal.innerText = '₹' + stats.allTimeTotalFormatted;
-            }
-            if (elAllSub && stats.allTimeCount !== undefined) {
-                elAllSub.innerHTML = `<i class="bi bi-receipt me-1"></i>${stats.allTimeCount} transactions across all history`;
-            }
-
-            // 4. Monthly Expense Summary Section
+        (function () {
+            const btnMonthlySummary = document.getElementById('btnMonthlySummaryTab');
+            const btnAllRecords = document.getElementById('btnAllRecordsTab');
+            const summarySection = document.getElementById('monthlyExpenseSummarySection');
+            const recordsSection = document.getElementById('allExpenseRecordsSection');
+            const monthPicker = document.getElementById('expenseMonthPicker');
+            const searchForm = document.getElementById('expenseSearchForm');
+            const searchInput = document.getElementById('expenseSearchInput');
+            const paymentFilter = document.getElementById('expensePaymentMethodFilter');
+            const paymentBadge = document.getElementById('recordsSelectedPaymentBadge');
+            const resetBtn = document.getElementById('expenseResetBtn');
             const summaryTbody = document.getElementById('monthlyExpenseSummaryTbody');
-            const summaryCount = document.getElementById('monthlyExpenseSummaryCount');
+            const summaryCountBadge = document.getElementById('monthlyExpenseSummaryCount');
+            const recordsMonthBadge = document.getElementById('recordsSelectedMonthBadge');
+            const tbody = document.getElementById('expenseTableBody');
+            const countLabel = document.getElementById('tableExpenseRecordCount');
+            const thDateFilter = document.getElementById('thDateFilter');
+            const thAmountFilter = document.getElementById('thAmountFilter');
+            const dateFilterIcon = document.getElementById('dateFilterIcon');
+            const amountFilterIcon = document.getElementById('amountFilterIcon');
 
-            if (summaryCount && stats.monthlySummaries) {
-                summaryCount.innerText = `${stats.monthlySummaries.length} Month(s) Recorded`;
+            let activeTab = '@activeTab';
+            let currentSortBy = '@(currentSortBy ?? "")';
+            let currentSortOrder = '@(currentSortOrder ?? "")';
+
+            function updateSortIcons() {
+                if (dateFilterIcon) {
+                    const iconDef = dateFilterIcon.querySelector('.sort-icon-default');
+                    const iconDesc = dateFilterIcon.querySelector('.sort-icon-desc');
+                    const iconAsc = dateFilterIcon.querySelector('.sort-icon-asc');
+                    if (iconDef && iconDesc && iconAsc) {
+                        iconDef.classList.toggle('d-none', currentSortBy === 'date');
+                        iconDesc.classList.toggle('d-none', !(currentSortBy === 'date' && currentSortOrder === 'desc'));
+                        iconAsc.classList.toggle('d-none', !(currentSortBy === 'date' && currentSortOrder === 'asc'));
+                    }
+                }
+                if (amountFilterIcon) {
+                    const iconDef = amountFilterIcon.querySelector('.sort-icon-default');
+                    const iconDesc = amountFilterIcon.querySelector('.sort-icon-desc');
+                    const iconAsc = amountFilterIcon.querySelector('.sort-icon-asc');
+                    if (iconDef && iconDesc && iconAsc) {
+                        iconDef.classList.toggle('d-none', currentSortBy === 'amount');
+                        iconDesc.classList.toggle('d-none', !(currentSortBy === 'amount' && currentSortOrder === 'desc'));
+                        iconAsc.classList.toggle('d-none', !(currentSortBy === 'amount' && currentSortOrder === 'asc'));
+                    }
+                }
             }
 
-            if (summaryTbody) {
-                if (!stats.monthlySummaries || stats.monthlySummaries.length === 0) {
+            function formatMonthDisplay(monthVal) {
+                if (!monthVal || !/^\d{4}-\d{2}$/.test(monthVal)) return 'All Months';
+                const [yStr, mStr] = monthVal.split('-');
+                const dt = new Date(parseInt(yStr, 10), parseInt(mStr, 10) - 1, 1);
+                return dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            }
+
+            function buildZeroSummary(monthVal) {
+                if (!monthVal || !/^\d{4}-\d{2}$/.test(monthVal)) return null;
+                const [yStr, mStr] = monthVal.split('-');
+                const y = parseInt(yStr, 10);
+                const m = parseInt(mStr, 10);
+                const today = new Date();
+                const curY = today.getFullYear();
+                const curM = today.getMonth() + 1;
+                const isCurrent = (y === curY && m === curM);
+                const isCompleted = (y < curY) || (y === curY && m < curM);
+                return {
+                    year: y,
+                    month: m,
+                    monthKey: monthVal,
+                    monthName: formatMonthDisplay(monthVal),
+                    total: 0,
+                    totalFormatted: '0.00',
+                    count: 0,
+                    isCurrentMonth: isCurrent,
+                    isCompleted: isCompleted
+                };
+            }
+
+            function getStatusBadgeHtml(mg) {
+                if (mg.isCurrentMonth) {
+                    return `<span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
+                                <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
+                            </span>`;
+                }
+                if (mg.isCompleted) {
+                    return `<span class="badge rounded-pill bg-success-subtle text-success px-3 py-1.5 fw-semibold">
+                                <i class="bi bi-check-circle-fill me-1"></i>Month Completed
+                            </span>`;
+                }
+                return `<span class="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-1.5 fw-semibold">
+                            <i class="bi bi-calendar-event me-1"></i>Upcoming Month
+                        </span>`;
+            }
+
+            function renderMonthlySummaryRows(stats) {
+                if (!stats || !summaryTbody) return;
+
+                const selectedVal = monthPicker ? monthPicker.value.trim() : '';
+                if (recordsMonthBadge) {
+                    recordsMonthBadge.innerText = formatMonthDisplay(selectedVal);
+                }
+
+                let rows = [];
+                if (selectedVal) {
+                    if (stats.selectedMonthSummary && stats.selectedMonthSummary.monthKey === selectedVal) {
+                        rows = [stats.selectedMonthSummary];
+                    } else {
+                        const found = (stats.monthlySummaries || []).find(m =>
+                            m.monthKey === selectedVal ||
+                            `${m.year}-${String(m.month).padStart(2, '0')}` === selectedVal
+                        );
+                        rows = [found || buildZeroSummary(selectedVal)];
+                    }
+                    if (summaryCountBadge) {
+                        summaryCountBadge.innerText = formatMonthDisplay(selectedVal);
+                    }
+                } else {
+                    rows = stats.monthlySummaries || [];
+                    if (summaryCountBadge) {
+                        summaryCountBadge.innerText = `${rows.length} Month(s) Recorded`;
+                    }
+                }
+
+                if (!rows || rows.length === 0) {
                     summaryTbody.innerHTML = `
                         <tr>
                             <td colspan="4" class="text-center py-4 text-muted">
@@ -316,52 +516,139 @@
                             </td>
                         </tr>
                     `;
-                } else {
-                    summaryTbody.innerHTML = stats.monthlySummaries.map(mg => `
-                        <tr>
+                    return;
+                }
+
+                summaryTbody.innerHTML = rows.map(mg => {
+                    const key = mg.monthKey || `${mg.year}-${String(mg.month).padStart(2, '0')}`;
+                    const clickableClass = selectedVal ? '' : 'expense-month-row-clickable';
+                    return `
+                        <tr class="${clickableClass}" data-month-key="${escapeHtml(key)}">
                             <td style="padding-left: 1.25rem;">
                                 <div class="fw-semibold">
-                                    <i class="bi bi-calendar-check me-2 text-primary"></i>${mg.monthName}
+                                    <i class="bi bi-calendar-check me-2 text-primary"></i>${escapeHtml(mg.monthName)}
                                 </div>
                             </td>
-                            <td>
-                                ${mg.isCompleted ? `
-                                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-1.5 fw-semibold">
-                                        <i class="bi bi-check-circle-fill me-1"></i>Month Completed
-                                    </span>
-                                ` : `
-                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-1.5 fw-semibold">
-                                        <i class="bi bi-hourglass-split me-1"></i>Current Month (In Progress)
-                                    </span>
-                                `}
-                            </td>
+                            <td>${getStatusBadgeHtml(mg)}</td>
                             <td class="text-center">
                                 <span class="badge bg-body-secondary text-body">${mg.count} ${mg.count === 1 ? 'record' : 'records'}</span>
                             </td>
                             <td class="text-end fw-bold text-danger fs-6" style="padding-right: 1.25rem;">
-                                ₹${mg.totalFormatted}
+                                ₹${escapeHtml(mg.totalFormatted)}
                             </td>
                         </tr>
-                    `).join('');
+                    `;
+                }).join('');
+            }
+
+            // Automatic Dynamic Recalculation & DOM Synchronization for Expenses
+            window.updateExpenseUI = function (stats) {
+                if (!stats) return;
+
+                const elCurrTotal = document.getElementById('kpiCurrentMonthTotal');
+                const elCurrSub = document.getElementById('kpiCurrentMonthSubtitle');
+                if (elCurrTotal && stats.currentMonthTotalFormatted !== undefined) {
+                    elCurrTotal.innerText = '₹' + stats.currentMonthTotalFormatted;
+                }
+                if (elCurrSub && stats.currentMonthName) {
+                    elCurrSub.innerHTML = `<i class="bi bi-clock-history me-1"></i>${stats.currentMonthCount} transactions logged in ${stats.currentMonthName}`;
+                }
+
+                const elCompTotal = document.getElementById('kpiCompletedMonthsTotal');
+                const elCompSub = document.getElementById('kpiCompletedMonthsSubtitle');
+                if (elCompTotal && stats.completedMonthsTotalFormatted !== undefined) {
+                    elCompTotal.innerText = '₹' + stats.completedMonthsTotalFormatted;
+                }
+                if (elCompSub && stats.completedMonthsCount !== undefined) {
+                    elCompSub.innerHTML = `<i class="bi bi-archive me-1"></i>Total for ${stats.completedMonthsCount} completed month(s)`;
+                }
+
+                const elAllTotal = document.getElementById('kpiAllTimeTotal');
+                const elAllSub = document.getElementById('kpiAllTimeSubtitle');
+                if (elAllTotal && stats.allTimeTotalFormatted !== undefined) {
+                    elAllTotal.innerText = '₹' + stats.allTimeTotalFormatted;
+                }
+                if (elAllSub && stats.allTimeCount !== undefined) {
+                    elAllSub.innerHTML = `<i class="bi bi-receipt me-1"></i>${stats.allTimeCount} transactions across all history`;
+                }
+
+                renderMonthlySummaryRows(stats);
+
+                // Re-sync visible record count after row delete animation completes
+                if (tbody && countLabel) {
+                    setTimeout(() => {
+                        const visibleRows = tbody.querySelectorAll('tr[data-expense-id]').length;
+                        countLabel.innerText = `Showing ${visibleRows} record(s)`;
+                    }, 280);
+                }
+            };
+
+            function syncBrowserUrl() {
+                const selectedVal = monthPicker ? monthPicker.value.trim() : '';
+                const query = searchInput ? searchInput.value.trim() : '';
+                const payMode = paymentFilter ? paymentFilter.value.trim() : '';
+                const params = new URLSearchParams();
+                params.set('month', selectedVal || 'all');
+                if (activeTab === 'records') params.set('tab', 'records');
+                if (query) params.set('search', query);
+                if (payMode) params.set('paymentMethodId', payMode);
+                if (currentSortBy) params.set('sortBy', currentSortBy);
+                if (currentSortOrder) params.set('sortOrder', currentSortOrder);
+                const newUrl = `/Expense?${params.toString()}`;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+            }
+
+            async function loadMonthlySummary() {
+                const selectedVal = monthPicker ? monthPicker.value.trim() : '';
+                const monthParam = selectedVal || 'all';
+                const url = `/api/Expense/expense_monthly_summary_get?month=${encodeURIComponent(monthParam)}`;
+                try {
+                    const res = await window.apiFetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !json.success) return;
+
+                    if (json.stats) {
+                        window.updateExpenseUI(json.stats);
+                    }
+                    syncBrowserUrl();
+                } catch (err) {
+                    console.error('Monthly summary API error:', err);
+                    showToast('Error loading monthly summary: ' + err.message, 'error');
                 }
             }
 
-            // 5. Table Record Count Badge
-            const tableRecordCount = document.getElementById('tableExpenseRecordCount');
-            if (tableRecordCount && stats.allTimeCount !== undefined) {
-                tableRecordCount.innerText = `Showing ${stats.allTimeCount} record(s)`;
+            async function ensurePaymentMethodsLoaded() {
+                if (!paymentFilter || paymentFilter.options.length > 1) return;
+                try {
+                    const res = await window.apiFetch('/api/PaymentMethod/payment_method_list_get', { method: 'GET' });
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    if (!json || !json.success || !Array.isArray(json.data)) return;
+                    const currentVal = paymentFilter.value;
+                    let opts = '<option value="">All</option>';
+                    json.data.forEach(m => {
+                        const sel = (currentVal && currentVal == m.paymentMethodId) ? ' selected' : '';
+                        opts += `<option value="${m.paymentMethodId}"${sel}>${escapeHtml(m.methodName)}</option>`;
+                    });
+                    paymentFilter.innerHTML = opts;
+                } catch (e) {
+                    // Non-blocking fallback
+                }
             }
-        };
 
-        (function () {
-            const searchForm = document.getElementById('expenseSearchForm');
-            const searchInput = document.getElementById('expenseSearchInput');
-            const resetBtn = document.getElementById('expenseResetBtn');
-            const tbody = document.getElementById('expenseTableBody');
-            const countLabel = document.getElementById('tableExpenseRecordCount');
+            async function loadExpenseRecords() {
+                const selectedVal = monthPicker ? monthPicker.value.trim() : '';
+                const monthParam = selectedVal || 'all';
+                const query = searchInput ? searchInput.value.trim() : '';
+                const payMode = paymentFilter ? paymentFilter.value.trim() : '';
 
-            async function searchExpenses(query) {
-                const url = `/api/Expense/expense_list_get?search=${encodeURIComponent(query || '')}`;
+                let url = `/api/Expense/expense_list_get?month=${encodeURIComponent(monthParam)}`;
+                if (query) url += `&search=${encodeURIComponent(query)}`;
+                if (payMode) url += `&paymentMethodId=${encodeURIComponent(payMode)}`;
+                if (currentSortBy) url += `&sortBy=${encodeURIComponent(currentSortBy)}`;
+                if (currentSortOrder) url += `&sortOrder=${encodeURIComponent(currentSortOrder)}`;
+
                 try {
                     const res = await window.apiFetch(url, { method: 'GET' });
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -372,6 +659,17 @@
                         window.updateExpenseUI(json.stats);
                     }
 
+                    if (recordsMonthBadge) {
+                        recordsMonthBadge.innerText = formatMonthDisplay(selectedVal);
+                    }
+                    if (paymentBadge) {
+                        if (paymentFilter && paymentFilter.selectedIndex > 0 && paymentFilter.value) {
+                            paymentBadge.innerText = paymentFilter.options[paymentFilter.selectedIndex].text;
+                            paymentBadge.classList.remove('d-none');
+                        } else {
+                            paymentBadge.classList.add('d-none');
+                        }
+                    }
                     if (countLabel) {
                         countLabel.innerText = `Showing ${json.data.length} record(s)`;
                     }
@@ -382,19 +680,18 @@
                                 <tr id="noExpensesRow">
                                     <td colspan="5" class="text-center py-5 text-muted">
                                         <i class="bi bi-wallet2 fs-1 d-block mb-2 text-muted"></i>
-                                        <em>${query ? `No shop expenses found matching "${escapeHtml(query)}".` : 'No shop expenses recorded yet.'}</em>
+                                        <em>No shop expenses recorded.</em>
                                     </td>
                                 </tr>
                             `;
                         } else {
                             tbody.innerHTML = json.data.map(e => {
                                 const safeDesc = escapeHtml(e.description || '');
-                                const safeDescArg = (e.description || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                 const payHtml = e.paymentMethodName
                                     ? `<small class="text-muted"><i class="bi bi-credit-card me-1"></i>${escapeHtml(e.paymentMethodName)}</small>`
                                     : '';
                                 return `
-                                    <tr id="expense-row-${e.expenseId}" data-expense-id="${e.expenseId}" data-amount="${e.amount}" data-date="${e.expenseDate}">
+                                    <tr id="expense-row-${e.expenseId}" data-expense-id="${e.expenseId}" data-amount="${e.amount}" data-date="${escapeHtml(e.expenseDate)}">
                                         <td class="fw-semibold text-nowrap">
                                             <i class="bi bi-calendar-event me-1 text-muted"></i>
                                             ${escapeHtml(e.expenseDate)}
@@ -416,7 +713,11 @@
                                                 <a href="/Expense/Edit/${e.expenseId}" class="btn btn-sm btn-outline-primary" title="Edit Expense">
                                                     <i class="bi bi-pencil-square me-1"></i>Edit
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('Expense', ${e.expenseId}, '${safeDescArg}', this.closest('tr'))" title="Delete Expense">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        data-desc="${safeDesc}"
+                                                        onclick="deleteItem('Expense', ${e.expenseId}, this.dataset.desc || '', this.closest('tr'))"
+                                                        title="Delete Expense">
                                                     <i class="bi bi-trash me-1"></i>Delete
                                                 </button>
                                             </div>
@@ -427,27 +728,121 @@
                         }
                     }
 
-                    const newUrl = query ? `/Expense?search=${encodeURIComponent(query)}` : '/Expense';
-                    window.history.replaceState({ path: newUrl }, '', newUrl);
+                    syncBrowserUrl();
                 } catch (err) {
                     console.error('Expense search API error:', err);
-                    showToast('Error searching expenses: ' + err.message, 'error');
+                    showToast('Error loading expenses: ' + err.message, 'error');
                 }
+            }
+
+            function setActiveTab(tab) {
+                activeTab = tab === 'records' ? 'records' : 'summary';
+                const isSummary = activeTab === 'summary';
+
+                if (btnMonthlySummary) {
+                    btnMonthlySummary.classList.toggle('active', isSummary);
+                    btnMonthlySummary.setAttribute('aria-selected', isSummary ? 'true' : 'false');
+                }
+                if (btnAllRecords) {
+                    btnAllRecords.classList.toggle('active', !isSummary);
+                    btnAllRecords.setAttribute('aria-selected', !isSummary ? 'true' : 'false');
+                }
+                if (summarySection) summarySection.classList.toggle('d-none', !isSummary);
+                if (recordsSection) recordsSection.classList.toggle('d-none', isSummary);
+
+                if (isSummary) {
+                    loadMonthlySummary();
+                } else {
+                    ensurePaymentMethodsLoaded();
+                    loadExpenseRecords();
+                }
+            }
+
+            if (btnMonthlySummary) {
+                btnMonthlySummary.addEventListener('click', function () {
+                    setActiveTab('summary');
+                });
+            }
+
+            if (btnAllRecords) {
+                btnAllRecords.addEventListener('click', function () {
+                    setActiveTab('records');
+                });
+            }
+
+            if (monthPicker) {
+                monthPicker.addEventListener('change', function () {
+                    if (activeTab === 'summary') {
+                        loadMonthlySummary();
+                    } else {
+                        loadExpenseRecords();
+                    }
+                });
+            }
+
+            if (paymentFilter) {
+                paymentFilter.addEventListener('change', function () {
+                    loadExpenseRecords();
+                });
+            }
+
+            if (summaryTbody) {
+                summaryTbody.addEventListener('click', function (e) {
+                    const row = e.target.closest('tr[data-month-key]');
+                    if (!row || !monthPicker || monthPicker.value.trim()) return;
+                    const monthKey = row.getAttribute('data-month-key');
+                    if (monthKey) {
+                        monthPicker.value = monthKey;
+                        loadMonthlySummary();
+                    }
+                });
             }
 
             if (searchForm) {
                 searchForm.addEventListener('submit', function (e) {
                     e.preventDefault();
-                    searchExpenses(searchInput ? searchInput.value.trim() : '');
+                    loadExpenseRecords();
+                });
+            }
+
+            function handleSortToggle(field) {
+                if (currentSortBy !== field) {
+                    currentSortBy = field;
+                    currentSortOrder = 'desc';
+                } else if (currentSortOrder === 'desc') {
+                    currentSortOrder = 'asc';
+                } else {
+                    currentSortBy = '';
+                    currentSortOrder = '';
+                }
+                updateSortIcons();
+                loadExpenseRecords();
+            }
+
+            if (thDateFilter) {
+                thDateFilter.addEventListener('click', function () {
+                    handleSortToggle('date');
+                });
+            }
+
+            if (thAmountFilter) {
+                thAmountFilter.addEventListener('click', function () {
+                    handleSortToggle('amount');
                 });
             }
 
             if (resetBtn) {
                 resetBtn.addEventListener('click', function () {
                     if (searchInput) searchInput.value = '';
-                    searchExpenses('');
+                    if (paymentFilter) paymentFilter.value = '';
+                    currentSortBy = '';
+                    currentSortOrder = '';
+                    updateSortIcons();
+                    loadExpenseRecords();
                 });
             }
+
+            updateSortIcons();
         })();
     </script>
 }
